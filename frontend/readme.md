@@ -1,0 +1,4 @@
+# Notes
+
+### TechStack
+Python=>  FastAPI

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice IT Helpdesk</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="app-card">
+
+    <header class="app-header">
+      <span class="app-title">Voice IT helpdesk</span>
+      <span class="session-status">
+        <span class="status-dot"></span>
+        Session active
+      </span>
+
+      <div class="profile-wrap">
+        <button id="profile-btn" class="avatar-btn" aria-label="Profile menu">AR</button>
+        <div id="profile-menu" class="profile-menu">
+          <button id="settings-btn">Settings</button>
+          <button id="logout-btn" class="danger">Log out</button>
+        </div>
+      </div>
+    </header>
+
+    <section id="chat-view">
+      <div class="chat-layout">
+
+        <div class="chat-panel">
+          <div class="listening-pill">Listening...</div>
+
+          <div id="message-list" class="message-list">
+            <!-- messages injected by app.js -->
+          </div>
+
+          <div class="controls">
+            <button id="start-btn">Start conversation</button>
+            <button id="tickets-btn">My tickets</button>
+          </div>
+        </div>
+
+        <div class="sidebar">
+          <p class="sidebar-label">Open tickets</p>
+          <div id="sidebar-tickets"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="dashboard-view" class="hidden">
+      <div class="dashboard-toolbar">
+        <button id="back-btn">Back</button>
+        <span class="dashboard-title">Tickets dashboard</span>
+        <button id="create-btn">Create ticket</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card"><p class="stat-label">Open</p><p id="stat-open" class="stat-value">0</p></div>
+        <div class="stat-card"><p class="stat-label">In progress</p><p id="stat-progress" class="stat-value">0</p></div>
+        <div class="stat-card"><p class="stat-label">Resolved</p><p id="stat-resolved" class="stat-value">0</p></div>
+      </div>
+
+      <div class="ticket-table">
+        <div class="ticket-row header-row">
+          <span>ID</span><span>Issue</span><span>Status</span><span>Opened</span><span></span>
+        </div>
+        <div id="ticket-rows"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
