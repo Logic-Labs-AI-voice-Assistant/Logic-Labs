@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice IT Helpdesk</title>
+  <link rel="stylesheet" href="Login.css" />
+</head>
+<body>
+
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <div class="brand-row">
+        <div class="brand-icon">V</div>
+        <div>
+          <div class="brand-title">Voice IT helpdesk</div>
+          <div class="brand-subtitle">Customer portal</div>
+        </div>
+      </div>
+
+      <div class="auth-tabs" role="tablist" aria-label="Authentication options">
+        <button type="button" class="auth-tab active" data-mode="login">Login</button>
+        <button type="button" class="auth-tab" data-mode="signup">Sign up</button>
+      </div>
+
+      <form id="auth-form" novalidate>
+        <div id="full-name-row" class="field hidden">
+          <label for="full-name">Full name</label>
+          <input id="full-name" name="full_name" type="text" placeholder="Jane Doe" maxlength="100" />
+        </div>
+
+        <div class="field">
+          <label for="email">Email address</label>
+          <input id="email" name="email" type="email" placeholder="name@example.com" autocomplete="email" required />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="password-wrap">
+            <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <button type="button" class="toggle-password" data-target="password" aria-label="Show password">Show</button>
+          </div>
+        </div>
+
+        <div id="confirm-password-row" class="field hidden">
+          <label for="confirm-password">Confirm password</label>
+          <div class="password-wrap">
+            <input id="confirm-password" name="confirm_password" type="password" placeholder="Re-enter your password" autocomplete="new-password" />
+            <button type="button" class="toggle-password" data-target="confirm-password" aria-label="Show confirm password">Show</button>
+          </div>
+        </div>
+
+        <div class="form-row compact">
+          <label class="checkbox-row"><input type="checkbox" id="remember-me" checked /> Remember me</label>
+          <a href="#" class="text-link" tabindex="-1">Need help?</a>
+        </div>
+
+        <div id="auth-message" class="auth-message" role="alert" aria-live="polite"></div>
+
+        <button id="auth-submit" type="submit" class="primary-btn">Log in</button>
+      </form>
+
+      <p class="auth-footer">
+        <span id="auth-switch-label">Need an account?</span>
+        <button type="button" id="auth-switch" class="link-button">Sign up</button>
+      </p>
+    </div>
+  </div>
+
+  <div id="app-shell" class="hidden">
+    <div class="app-card">
+      <header class="app-header">
+        <span class="app-title">Voice IT helpdesk</span>
+        <span class="session-status">
+          <span class="status-dot"></span>
+          <span id="session-label">Session active</span>
+        </span>
+
+        <div class="profile-wrap">
+          <button id="profile-btn" class="avatar-btn" aria-label="Profile menu">AR</button>
+          <div id="profile-menu" class="profile-menu">
+            <button id="settings-btn">Settings</button>
+            <button id="logout-btn" class="danger">Log out</button>
+          </div>
+        </div>
+      </header>
+
+      <section id="chat-view">
+        <div class="chat-layout">
+          <div class="chat-panel">
+            <div class="listening-pill">Listening...</div>
+
+            <div id="message-list" class="message-list">
+              <!-- messages injected by app.js -->
+            </div>
+
+            <div class="controls">
+              <button id="start-btn">Start conversation</button>
+              <button id="tickets-btn">My tickets</button>
+            </div>
+          </div>
+
+          <div class="sidebar">
+            <p class="sidebar-label">Open tickets</p>
+            <div id="sidebar-tickets"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboard-view" class="hidden">
+        <div class="dashboard-toolbar">
+          <button id="back-btn">Back</button>
+          <span class="dashboard-title">Tickets dashboard</span>
+          <button id="create-btn">Create ticket</button>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card"><p class="stat-label">Open</p><p id="stat-open" class="stat-value">0</p></div>
+          <div class="stat-card"><p class="stat-label">In progress</p><p id="stat-progress" class="stat-value">0</p></div>
+          <div class="stat-card"><p class="stat-label">Resolved</p><p id="stat-resolved" class="stat-value">0</p></div>
+        </div>
+
+        <div class="ticket-table">
+          <div class="ticket-row header-row">
+            <span>ID</span><span>Issue</span><span>Status</span><span>Opened</span><span></span>
+          </div>
+          <div id="ticket-rows"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>
