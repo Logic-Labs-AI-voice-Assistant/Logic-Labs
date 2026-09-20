@@ -1,41 +1,138 @@
+
 """
 Voice IT Helpdesk — Backend (Person 5)
 
-This is the FastAPI skeleton for Week 1. Every endpoint currently
-returns mock data so the frontend can be built against a stable
-contract. As Person 1 (voice), Person 2 (agent), Person 3 (MCP tools)
-and Person 4 (RAG) finish their pieces, swap the mock logic inside
-each endpoint for real calls — the request/response shapes below are
-the contract they should build against too.
+Combined FastAPI backend:
+- Customer registration and login
+- SQLite customer database
+- HTTP-only cookie authentication
+- Conversation sessions
+- Mock AI response
+- Ticket management
+- Health check
+
+Replace mock agent logic with Foundry Agent integration later.
 """
 
+import hashlib
+import hmac
 import itertools
+import os
+import re
+import secrets
+import sqlite3
 import uuid
-from datetime import datetime
-from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from datetime import datetime, timezone
+from typing import Any, Dict, List
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    field_validator,
+    model_validator,
+)
 
-app = FastAPI(title="Voice IT Helpdesk API")
 
-# Allow the frontend (served separately, e.g. via a static file server
-# or Live Server) to call this API during development.
+# ============================================================
+# ENVIRONMENT CONFIGURATION
+# ============================================================
+
+load_dotenv(
+    dotenv_path=os.path.join(
+        os.path.dirname(__file__),
+        ".env"
+    )
+)
+
+
+# ============================================================
+# FASTAPI APPLICATION
+# ============================================================
+
+app = FastAPI(
+    title="Voice IT Helpdesk API",
+    version="1.0.0"
+)
+
+
+# ============================================================
+# CORS CONFIGURATION
+# ============================================================
+
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://127.0.0.1:5500,"
+        "http://localhost:5500,"
+        "http://127.0.0.1:8000,"
+        "http://localhost:8000"
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this before deployment
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# In-memory "database" (mock only — replace with real persistence later)
-# ---------------------------------------------------------------------------
 
-SESSIONS: dict = {}
+# ============================================================
+# CONFIGURATION
+# ============================================================
 
-TICKETS: dict = {
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DATABASE_PATH = os.getenv(
+    "DATABASE_PATH",
+    os.path.join(BASE_DIR, "customer_auth.db")
+)
+
+SESSION_TTL_SECONDS = int(
+    os.getenv("SESSION_TTL_SECONDS", "3600")
+)
+
+SESSION_COOKIE_SECURE = (
+    os.getenv(
+        "SESSION_COOKIE_SECURE",
+        "false"
+    ).lower() == "true"
+)
+
+SESSION_COOKIE_SAMESITE = os.getenv(
+    "SESSION_COOKIE_SAMESITE",
+    "lax"
+).lower()
+
+if SESSION_COOKIE_SAMESITE not in {"lax", "strict", "none"}:
+    SESSION_COOKIE_SAMESITE = "lax"
+
+
+# ============================================================
+# IN-MEMORY STORAGE
+# ============================================================
+
+# Conversation sessions
+CONVERSATION_SESSIONS: Dict[str, Dict[str, Any]] = {}
+
+# Authentication sessions
+# session_id -> {"user_id": str, "expires_at": float}
+AUTH_SESSIONS: Dict[str, Dict[str, Any]] = {}
+
+
+# ============================================================
+# MOCK TICKET DATABASE
+# ============================================================
+
+TICKETS: Dict[str, Dict[str, str]] = {
     "4821": {
         "id": "4821",
         "issue": "DNS failure",
@@ -55,14 +152,227 @@ TICKETS: dict = {
         "opened": "5 days ago",
     },
 }
+
 _ticket_id_counter = itertools.count(4900)
 
-MOCK_USER = {"name": "Arpita", "initials": "AR", "role": "Student"}
+
+# ============================================================
+# DATABASE FUNCTIONS
+# ============================================================
+
+def get_db_connection() -> sqlite3.Connection:
+    """
+    Create a SQLite database connection.
+    """
+
+    conn = sqlite3.connect(DATABASE_PATH)
+
+    conn.row_factory = sqlite3.Row
+
+    return conn
 
 
-# ---------------------------------------------------------------------------
-# Schemas
-# ---------------------------------------------------------------------------
+def init_db() -> None:
+    """
+    Create the customers table if it does not exist.
+    """
+
+    with get_db_connection() as conn:
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS customers (
+                id TEXT PRIMARY KEY,
+                full_name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'customer',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
+        conn.commit()
+
+
+init_db()
+
+
+# ============================================================
+# UTILITY FUNCTIONS
+# ============================================================
+
+def utc_now() -> datetime:
+    """
+    Return the current UTC datetime.
+    """
+
+    return datetime.now(timezone.utc)
+
+
+def utc_now_iso() -> str:
+    """
+    Return the current UTC time as an ISO string.
+    """
+
+    return utc_now().isoformat()
+
+
+def normalize_email(email: str) -> str:
+    """
+    Normalize email addresses.
+    """
+
+    return email.strip().lower()
+
+
+# ============================================================
+# PASSWORD HASHING
+# ============================================================
+
+def hash_password(password: str) -> str:
+    """
+    Hash a password using PBKDF2-HMAC-SHA256.
+    """
+
+    salt = secrets.token_hex(16)
+
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        200_000
+    )
+
+    return f"pbkdf2_sha256${salt}${digest.hex()}"
+
+
+def verify_password(
+    password: str,
+    stored_hash: str
+) -> bool:
+    """
+    Verify a password against its stored hash.
+    """
+
+    if not stored_hash.startswith("pbkdf2_sha256$"):
+        return False
+
+    try:
+        _, salt, stored_digest = stored_hash.split("$", 2)
+
+    except ValueError:
+        return False
+
+    candidate_digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        200_000
+    ).hex()
+
+    return hmac.compare_digest(
+        candidate_digest,
+        stored_digest
+    )
+
+
+# ============================================================
+# CUSTOMER SERIALIZATION
+# ============================================================
+
+def serialize_customer(
+    row: sqlite3.Row
+) -> Dict[str, Any]:
+    """
+    Convert a database row into a safe response.
+
+    Password hashes are never returned.
+    """
+
+    return {
+        "id": row["id"],
+        "full_name": row["full_name"],
+        "email": row["email"],
+        "role": row["role"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+# ============================================================
+# AUTHENTICATION SESSION MANAGEMENT
+# ============================================================
+
+def get_current_customer(
+    request: Request
+) -> sqlite3.Row:
+    """
+    Get the currently authenticated customer.
+
+    Authentication uses an HTTP-only cookie.
+    """
+
+    session_id = request.cookies.get("session_id")
+
+    if not session_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required."
+        )
+
+    session = AUTH_SESSIONS.get(session_id)
+
+    if not session:
+        raise HTTPException(
+            status_code=401,
+            detail="Session expired or invalid."
+        )
+
+    if session["expires_at"] <= utc_now().timestamp():
+
+        AUTH_SESSIONS.pop(session_id, None)
+
+        raise HTTPException(
+            status_code=401,
+            detail="Session expired."
+        )
+
+    user_id = session["user_id"]
+
+    with get_db_connection() as conn:
+
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                full_name,
+                email,
+                role,
+                created_at,
+                updated_at
+            FROM customers
+            WHERE id = ?
+            """,
+            (user_id,)
+        ).fetchone()
+
+    if row is None:
+
+        AUTH_SESSIONS.pop(session_id, None)
+
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required."
+        )
+
+    return row
+
+
+# ============================================================
+# PYDANTIC SCHEMAS
+# ============================================================
 
 class MessageIn(BaseModel):
     session_id: str
@@ -70,7 +380,7 @@ class MessageIn(BaseModel):
 
 
 class MessageOut(BaseModel):
-    role: str  # "user" | "agent"
+    role: str
     text: str
     timestamp: str
 
@@ -86,92 +396,396 @@ class Ticket(BaseModel):
     opened: str
 
 
-# ---------------------------------------------------------------------------
-# Session endpoints
-# ---------------------------------------------------------------------------
+class CustomerRegisterIn(BaseModel):
+
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: str
+    email: EmailStr
+    password: str
+    confirm_password: str
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, value: str) -> str:
+
+        value = value.strip()
+
+        if len(value) < 2:
+            raise ValueError(
+                "Full name must be at least 2 characters long."
+            )
+
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+
+        if len(value) < 8:
+            raise ValueError(
+                "Password must be at least 8 characters long."
+            )
+
+        if not re.search(r"[A-Z]", value):
+            raise ValueError(
+                "Password must include at least one uppercase letter."
+            )
+
+        if not re.search(r"[a-z]", value):
+            raise ValueError(
+                "Password must include at least one lowercase letter."
+            )
+
+        if not re.search(r"\d", value):
+            raise ValueError(
+                "Password must include at least one number."
+            )
+
+        if not re.search(r"[^A-Za-z0-9]", value):
+            raise ValueError(
+                "Password must include at least one special character."
+            )
+
+        return value
+
+    @model_validator(mode="after")
+    def validate_confirm_password(self):
+
+        if self.password != self.confirm_password:
+            raise ValueError(
+                "Passwords do not match."
+            )
+
+        return self
+
+
+class CustomerLoginIn(BaseModel):
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr
+    password: str
+
+
+# ============================================================
+# CONVERSATION SESSION ENDPOINTS
+# ============================================================
 
 @app.post("/api/session/start")
 def start_session():
+
     session_id = str(uuid.uuid4())
-    SESSIONS[session_id] = {"created_at": datetime.utcnow().isoformat(), "history": []}
-    return {"session_id": session_id}
+
+    CONVERSATION_SESSIONS[session_id] = {
+        "created_at": utc_now_iso(),
+        "history": []
+    }
+
+    return {
+        "session_id": session_id
+    }
 
 
-# ---------------------------------------------------------------------------
-# Conversation endpoint
-# ---------------------------------------------------------------------------
+# ============================================================
+# CONVERSATION ENDPOINT
+# ============================================================
 
-@app.post("/api/message", response_model=MessageOut)
+@app.post(
+    "/api/message",
+    response_model=MessageOut
+)
 def send_message(payload: MessageIn):
-    if payload.session_id not in SESSIONS:
-        raise HTTPException(status_code=404, detail="Session not found")
 
-    # --- MOCK RESPONSE ---
-    # Replace this block with a call to Person 2's Foundry Agent once
-    # it's ready. For now we fake a canned IT-support style reply.
+    if payload.session_id not in CONVERSATION_SESSIONS:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found"
+        )
+
+    # --------------------------------------------------------
+    # MOCK RESPONSE
+    # Replace this with the Foundry Agent call later.
+    # --------------------------------------------------------
+
     reply_text = (
         "I'll check your device status now. "
-        "Your wifi is connected but DNS is failing. I've opened a ticket for this."
+        "Your wifi is connected but DNS is failing. "
+        "I've opened a ticket for this."
     )
 
-    SESSIONS[payload.session_id]["history"].append(
-        {"role": "user", "text": payload.text}
+    CONVERSATION_SESSIONS[
+        payload.session_id
+    ]["history"].append(
+        {
+            "role": "user",
+            "text": payload.text
+        }
     )
-    SESSIONS[payload.session_id]["history"].append(
-        {"role": "agent", "text": reply_text}
+
+    CONVERSATION_SESSIONS[
+        payload.session_id
+    ]["history"].append(
+        {
+            "role": "agent",
+            "text": reply_text
+        }
     )
 
-    return MessageOut(role="agent", text=reply_text, timestamp=datetime.utcnow().isoformat())
+    return MessageOut(
+        role="agent",
+        text=reply_text,
+        timestamp=utc_now_iso()
+    )
 
 
-# ---------------------------------------------------------------------------
-# Ticket endpoints
-# ---------------------------------------------------------------------------
+# ============================================================
+# TICKET ENDPOINTS
+# ============================================================
 
-@app.get("/api/tickets", response_model=List[Ticket])
+@app.get(
+    "/api/tickets",
+    response_model=List[Ticket]
+)
 def get_tickets():
+
     return list(TICKETS.values())
 
 
-@app.post("/api/tickets", response_model=Ticket)
+@app.post(
+    "/api/tickets",
+    response_model=Ticket
+)
 def create_ticket(payload: TicketIn):
+
     new_id = str(next(_ticket_id_counter))
+
+    issue = payload.issue.strip() or "New ticket"
+
     ticket = {
         "id": new_id,
-        "issue": payload.issue or "New ticket",
+        "issue": issue,
         "status": "open",
-        "opened": "Just now",
+        "opened": "Just now"
     }
+
     TICKETS[new_id] = ticket
+
     return ticket
 
 
 @app.delete("/api/tickets/{ticket_id}")
 def delete_ticket(ticket_id: str):
+
     if ticket_id not in TICKETS:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
     del TICKETS[ticket_id]
-    return {"deleted": ticket_id}
+
+    return {
+        "deleted": ticket_id
+    }
 
 
-# ---------------------------------------------------------------------------
-# Auth endpoints (mock — replace with real auth in Week 3)
-# ---------------------------------------------------------------------------
+# ============================================================
+# CUSTOMER AUTHENTICATION ENDPOINTS
+# ============================================================
+
+@app.post(
+    "/api/auth/register",
+    status_code=201
+)
+def register_customer(
+    payload: CustomerRegisterIn
+):
+
+    email = normalize_email(str(payload.email))
+
+    with get_db_connection() as conn:
+
+        existing = conn.execute(
+            """
+            SELECT 1
+            FROM customers
+            WHERE email = ?
+            """,
+            (email,)
+        ).fetchone()
+
+        if existing is not None:
+
+            raise HTTPException(
+                status_code=409,
+                detail="An account with this email already exists."
+            )
+
+        customer_id = uuid.uuid4().hex
+
+        now = utc_now_iso()
+
+        password_hash = hash_password(
+            payload.password
+        )
+
+        conn.execute(
+            """
+            INSERT INTO customers (
+                id,
+                full_name,
+                email,
+                password_hash,
+                role,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, 'customer', ?, ?)
+            """,
+            (
+                customer_id,
+                payload.full_name.strip(),
+                email,
+                password_hash,
+                now,
+                now
+            )
+        )
+
+        conn.commit()
+
+    return {
+        "id": customer_id,
+        "full_name": payload.full_name.strip(),
+        "email": email,
+        "role": "customer",
+        "created_at": now,
+        "updated_at": now
+    }
+
+
+@app.post("/api/auth/login")
+def login_customer(
+    payload: CustomerLoginIn,
+    response: Response
+):
+
+    email = normalize_email(str(payload.email))
+
+    with get_db_connection() as conn:
+
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                full_name,
+                email,
+                password_hash,
+                role,
+                created_at,
+                updated_at
+            FROM customers
+            WHERE email = ?
+            """,
+            (email,)
+        ).fetchone()
+
+    if row is None or not verify_password(
+        payload.password,
+        row["password_hash"]
+    ):
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password."
+        )
+
+    session_id = secrets.token_urlsafe(32)
+
+    AUTH_SESSIONS[session_id] = {
+        "user_id": row["id"],
+        "expires_at": (
+            utc_now().timestamp()
+            + SESSION_TTL_SECONDS
+        )
+    }
+
+    response.set_cookie(
+        key="session_id",
+        value=session_id,
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        secure=SESSION_COOKIE_SECURE,
+        samesite=SESSION_COOKIE_SAMESITE,
+        path="/"
+    )
+
+    return serialize_customer(row)
+
 
 @app.get("/api/auth/me")
-def get_current_user():
-    return MOCK_USER
+def get_current_user(
+    request: Request
+):
+
+    row = get_current_customer(request)
+
+    return serialize_customer(row)
 
 
 @app.post("/api/auth/logout")
-def logout():
-    return {"status": "logged_out"}
+def logout(
+    request: Request,
+    response: Response
+):
+
+    session_id = request.cookies.get("session_id")
+
+    if session_id:
+
+        AUTH_SESSIONS.pop(
+            session_id,
+            None
+        )
+
+    response.delete_cookie(
+        key="session_id",
+        path="/",
+        samesite=SESSION_COOKIE_SAMESITE,
+        secure=SESSION_COOKIE_SECURE
+    )
+
+    return {
+        "status": "logged_out"
+    }
 
 
-# ---------------------------------------------------------------------------
-# Health check (useful for Azure + Application Insights later)
-# ---------------------------------------------------------------------------
+# ============================================================
+# HEALTH CHECK
+# ============================================================
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "time": datetime.utcnow().isoformat()}
+
+    return {
+        "status": "ok",
+        "time": utc_now_iso()
+    }
+
+
+# ============================================================
+# RUN SERVER
+# ============================================================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000
+    )
