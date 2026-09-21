@@ -1,78 +1,551 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Voice IT Helpdesk</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice IT Helpdesk</title>
+    <style>
+        /* =========================================
+        BASE & LAYOUT STYLES
+        ========================================= */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 1rem;
+            background: #f5f4ef;
+            color: #1a1a1a;
+        }
+        .hidden { display: none !important; }
+        .chat-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .sidebar {
+            background: #ffffff;
+            border: 1px solid #e0ded6;
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        .chat-panel {
+            background: #ffffff;
+            border: 1px solid #e0ded6;
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .message-list {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #e0ded6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            min-height: 300px;
+            background: #fafafa;
+        }
+        .message { margin-bottom: 1rem; }
+        .message.user { text-align: right; }
+        .message.user .role { font-weight: 600; color: #185fa5; font-size: 12px; }
+        .message.agent { text-align: left; }
+        .message.agent .role { font-weight: 600; color: #6b6a63; font-size: 12px; }
+        
+        .ticket-card {
+            background: #f9f9f9;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #e0ded6;
+            font-size: 13px;
+        }
+        .ticket-row {
+            display: grid;
+            grid-template-columns: 60px 1fr 100px 100px 80px;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+            align-items: center;
+            font-size: 14px;
+        }
+        .status-open { color: #d97706; font-weight: 600; }
+        .status-in_progress { color: #2563eb; font-weight: 600; }
+        .status-resolved { color: #16a34a; font-weight: 600; }
+        .delete-btn {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .delete-btn:hover { background: #fecaca; }
+        .stats {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+            font-size: 14px;
+        }
+
+        /* =========================================
+        TYPING BOX
+        ========================================= */
+        .message-input-area {
+            display: flex;
+            gap: 8px;
+            margin-top: 1rem;
+            align-items: flex-end;
+        }
+        #message-input {
+            flex: 1;
+            resize: vertical;
+            min-height: 42px;
+            max-height: 120px;
+            padding: 10px 12px;
+            border: 1px solid #d3d1c7;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+        }
+        #message-input:focus {
+            border-color: #185fa5;
+            box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.08);
+        }
+        .send-btn {
+            padding: 10px 16px;
+            border: 1px solid #185fa5;
+            border-radius: 8px;
+            background: #185fa5;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            min-height: 42px;
+        }
+        .send-btn:hover { background: #0c447c; }
+        .send-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* =========================================
+        CREATE TICKET MODAL
+        ========================================= */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 100;
+        }
+        .modal.hidden { display: none !important; }
+        .modal-content {
+            width: 100%;
+            max-width: 440px;
+            background: #ffffff;
+            border: 1px solid #e0ded6;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .modal-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+        .modal-description { font-size: 13px; color: #6b6a63; margin: 8px 0 1rem; }
+        .close-btn {
+            width: 30px; height: 30px; border: none; border-radius: 6px;
+            background: transparent; font-size: 24px; color: #6b6a63; cursor: pointer;
+        }
+        .close-btn:hover { background: #f5f4ef; }
+        .modal-content label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+        #ticket-issue {
+            width: 100%; resize: vertical; padding: 10px 12px;
+            border: 1px solid #d3d1c7; border-radius: 8px;
+            font-family: inherit; font-size: 14px; outline: none;
+        }
+        #ticket-issue:focus {
+            border-color: #185fa5;
+            box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.08);
+        }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1rem; }
+        .secondary-btn, .primary-btn {
+            padding: 9px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+        }
+        .secondary-btn { background: #ffffff; border: 1px solid #d3d1c7; color: #1a1a1a; }
+        .secondary-btn:hover { background: #f5f4ef; }
+        .primary-btn { background: #185fa5; border: 1px solid #185fa5; color: #ffffff; }
+        .primary-btn:hover { background: #0c447c; }
+        .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* =========================================
+        RESPONSIVE DESIGN
+        ========================================= */
+        @media (max-width: 600px) {
+            body { padding: 0.75rem; }
+            .chat-layout { grid-template-columns: 1fr; }
+            .chat-panel { border-right: none; border-bottom: 1px solid #e0ded6; }
+            .sidebar { padding: 1rem; }
+            .message-input-area { flex-direction: column; align-items: stretch; }
+            .send-btn { width: 100%; }
+            .ticket-row { grid-template-columns: 55px 1fr 85px; }
+            .ticket-row span:nth-child(4), .ticket-row span:nth-child(5) { display: none; }
+            .modal-content { padding: 1rem; }
+        }
+    </style>
 </head>
 <body>
-
-  <div class="app-card">
-
-    <header class="app-header">
-      <span class="app-title">Voice IT helpdesk</span>
-      <span class="session-status">
-        <span class="status-dot"></span>
-        Session active
-      </span>
-
-      <div class="profile-wrap">
-        <button id="profile-btn" class="avatar-btn" aria-label="Profile menu">AR</button>
-        <div id="profile-menu" class="profile-menu">
-          <button id="settings-btn">Settings</button>
-          <button id="logout-btn" class="danger">Log out</button>
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; max-width: 1200px; margin: 0 auto 1rem auto;">
+        <h1 style="margin: 0; font-size: 20px;">Voice IT Helpdesk</h1>
+        <div style="display: flex; align-items: center; gap: 1rem; position: relative;">
+            <span style="font-size: 14px; color: #16a34a;">● Session active</span>
+            <button id="profile-btn" style="width: 32px; height: 32px; border-radius: 50%; background: #185fa5; color: white; border: none; cursor: pointer; font-weight: 600;">AR</button>
+            <div id="profile-menu" class="hidden" style="position: absolute; top: 40px; right: 0; background: white; border: 1px solid #e0ded6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 0.5rem; min-width: 120px; z-index: 50;">
+                <button id="settings-btn" style="display: block; width: 100%; text-align: left; padding: 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px;">Settings</button>
+                <button id="logout-btn" style="display: block; width: 100%; text-align: left; padding: 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; color: #dc2626;">Log out</button>
+            </div>
         </div>
-      </div>
     </header>
 
-    <section id="chat-view">
-      <div class="chat-layout">
+    <main class="chat-layout">
+        <aside class="sidebar">
+            <button id="tickets-btn" class="primary-btn" style="width: 100%; margin-bottom: 1rem;">My tickets</button>
+            <div id="sidebar-tickets">
+                <!-- Sidebar tickets rendered here -->
+            </div>
+        </aside>
 
-        <div class="chat-panel">
-          <div class="listening-pill">Listening...</div>
+        <section id="chat-view" class="chat-panel">
+            <div id="message-list" class="message-list"></div>
+            <div class="message-input-area">
+                <textarea id="message-input" placeholder="Listening..."></textarea>
+                <button id="start-btn" class="secondary-btn">Start conversation</button>
+                <button id="send-btn" class="send-btn">Send</button>
+            </div>
+        </section>
 
-          <div id="message-list" class="message-list">
-            <!-- messages injected by app.js -->
-          </div>
+        <section id="dashboard-view" class="chat-panel hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <button id="back-btn" class="secondary-btn">← Back</button>
+                <h2 style="margin: 0; font-size: 18px;">Tickets dashboard</h2>
+                <button id="create-btn" class="primary-btn">Create ticket</button>
+            </div>
+            
+            <div class="stats">
+                <span>Open: <strong id="stat-open">0</strong></span>
+                <span>In progress: <strong id="stat-progress">0</strong></span>
+                <span>Resolved: <strong id="stat-resolved">0</strong></span>
+            </div>
 
-          <div class="controls">
-            <button id="start-btn">Start conversation</button>
-            <button id="tickets-btn">My tickets</button>
-          </div>
+            <div style="font-weight: 600; font-size: 13px; color: #6b6a63; padding: 0.5rem 0; border-bottom: 1px solid #e0ded6; display: grid; grid-template-columns: 60px 1fr 100px 100px 80px; gap: 0.5rem;">
+                <span>ID</span><span>Issue</span><span>Status</span><span>Opened</span><span></span>
+            </div>
+            <div id="ticket-rows">
+                <!-- Dashboard tickets rendered here -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal -->
+    <div id="ticket-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create a ticket</h2>
+                <button id="close-modal-btn" class="close-btn">×</button>
+            </div>
+            <p class="modal-description">Describe the IT issue you are experiencing.</p>
+            <label for="ticket-issue">Issue description</label>
+            <textarea id="ticket-issue" rows="4"></textarea>
+            <div class="modal-actions">
+                <button id="cancel-ticket-btn" class="secondary-btn">Cancel</button>
+                <button id="submit-ticket-btn" class="primary-btn">Create ticket</button>
+            </div>
         </div>
+    </div>
 
-        <div class="sidebar">
-          <p class="sidebar-label">Open tickets</p>
-          <div id="sidebar-tickets"></div>
-        </div>
+    <script>
+        // =========================================
+        // API CONFIGURATION
+        // =========================================
+        const API_BASE = "/api"; // Changed to relative path for seamless same-origin serving
+        let sessionId = null;
+        
+        // =========================================
+        // DOM ELEMENTS
+        // =========================================
+        const profileBtn = document.getElementById("profile-btn");
+        const profileMenu = document.getElementById("profile-menu");
+        const logoutBtn = document.getElementById("logout-btn");
+        const settingsBtn = document.getElementById("settings-btn");
+        const chatView = document.getElementById("chat-view");
+        const dashboardView = document.getElementById("dashboard-view");
+        const ticketsBtn = document.getElementById("tickets-btn");
+        const backBtn = document.getElementById("back-btn");
+        const createBtn = document.getElementById("create-btn");
+        const startBtn = document.getElementById("start-btn");
+        const sendBtn = document.getElementById("send-btn");
+        const messageList = document.getElementById("message-list");
+        const messageInput = document.getElementById("message-input");
+        const sidebarTickets = document.getElementById("sidebar-tickets");
+        const ticketRows = document.getElementById("ticket-rows");
+        const statOpen = document.getElementById("stat-open");
+        const statProgress = document.getElementById("stat-progress");
+        const statResolved = document.getElementById("stat-resolved");
+        const ticketModal = document.getElementById("ticket-modal");
+        const closeModalBtn = document.getElementById("close-modal-btn");
+        const cancelTicketBtn = document.getElementById("cancel-ticket-btn");
+        const submitTicketBtn = document.getElementById("submit-ticket-btn");
+        const ticketIssue = document.getElementById("ticket-issue");
 
-      </div>
-    </section>
+        // =========================================
+        // PROFILE DROPDOWN
+        // =========================================
+        profileBtn.addEventListener("click", () => {
+            profileMenu.classList.toggle("hidden");
+        });
+        document.addEventListener("click", (e) => {
+            if (!profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
+                profileMenu.classList.add("hidden");
+            }
+        });
+        logoutBtn.addEventListener("click", async () => {
+            try {
+                await fetch(`${API_BASE}/auth/logout`, { method: "POST" });
+                alert("Logged out (mock).");
+            } catch (error) {
+                console.error("Logout error:", error);
+            }
+        });
+        settingsBtn.addEventListener("click", () => {
+            alert("Settings screen not built yet.");
+        });
 
-    <section id="dashboard-view" class="hidden">
-      <div class="dashboard-toolbar">
-        <button id="back-btn">Back</button>
-        <span class="dashboard-title">Tickets dashboard</span>
-        <button id="create-btn">Create ticket</button>
-      </div>
+        // =========================================
+        // VIEW SWITCHING
+        // =========================================
+        ticketsBtn.addEventListener("click", async () => {
+            chatView.classList.add("hidden");
+            dashboardView.classList.remove("hidden");
+            await loadTickets();
+        });
+        backBtn.addEventListener("click", () => {
+            dashboardView.classList.add("hidden");
+            chatView.classList.remove("hidden");
+        });
 
-      <div class="stats-row">
-        <div class="stat-card"><p class="stat-label">Open</p><p id="stat-open" class="stat-value">0</p></div>
-        <div class="stat-card"><p class="stat-label">In progress</p><p id="stat-progress" class="stat-value">0</p></div>
-        <div class="stat-card"><p class="stat-label">Resolved</p><p id="stat-resolved" class="stat-value">0</p></div>
-      </div>
+        // =========================================
+        // CONVERSATION
+        // =========================================
+        startBtn.addEventListener("click", async () => {
+            try {
+                startBtn.disabled = true;
+                const res = await fetch(`${API_BASE}/session/start`, { method: "POST" });
+                if (!res.ok) throw new Error("Failed to start session");
+                const data = await res.json();
+                sessionId = data.session_id;
+                addMessage("user", "My VPN isn't working");
+                await sendMessageToBackend("My VPN isn't working");
+            } catch (error) {
+                console.error("Conversation error:", error);
+                addMessage("agent", "Unable to start conversation.");
+            } finally {
+                startBtn.disabled = false;
+            }
+        });
 
-      <div class="ticket-table">
-        <div class="ticket-row header-row">
-          <span>ID</span><span>Issue</span><span>Status</span><span>Opened</span><span></span>
-        </div>
-        <div id="ticket-rows"></div>
-      </div>
-    </section>
+        sendBtn.addEventListener("click", async () => {
+            const text = messageInput.value.trim();
+            if (!text) return;
+            if (!sessionId) {
+                addMessage("agent", "Please start a conversation first.");
+                return;
+            }
+            messageInput.value = "";
+            addMessage("user", text);
+            await sendMessageToBackend(text);
+        });
 
-  </div>
+        messageInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendBtn.click();
+            }
+        });
 
-  <script src="app.js"></script>
+        async function sendMessageToBackend(text) {
+            try {
+                sendBtn.disabled = true;
+                const res = await fetch(`${API_BASE}/message`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: sessionId, text: text })
+                });
+                if (!res.ok) throw new Error("Failed to send message");
+                const data = await res.json();
+                addMessage("agent", data.text);
+            } catch (error) {
+                console.error("Message error:", error);
+                addMessage("agent", "Sorry, I could not process your message.");
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        function addMessage(role, text) {
+            const el = document.createElement("div");
+            el.className = `message ${role}`;
+            const roleLabel = document.createElement("p");
+            roleLabel.className = "role";
+            roleLabel.textContent = role === "user" ? "User" : "Agent";
+            const messageText = document.createElement("p");
+            messageText.textContent = text;
+            el.appendChild(roleLabel);
+            el.appendChild(messageText);
+            messageList.appendChild(el);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        // =========================================
+        // TICKET MODAL
+        // =========================================
+        createBtn.addEventListener("click", () => {
+            ticketIssue.value = "";
+            ticketModal.classList.remove("hidden");
+            ticketIssue.focus();
+        });
+
+        function closeTicketModal() {
+            ticketModal.classList.add("hidden");
+            ticketIssue.value = "";
+        }
+        closeModalBtn.addEventListener("click", closeTicketModal);
+        cancelTicketBtn.addEventListener("click", closeTicketModal);
+        
+        ticketModal.addEventListener("click", (e) => {
+            if (e.target === ticketModal) closeTicketModal();
+        });
+        
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !ticketModal.classList.contains("hidden")) {
+                closeTicketModal();
+            }
+        });
+
+        // =========================================
+        // CREATE TICKET
+        // =========================================
+        submitTicketBtn.addEventListener("click", async () => {
+            const issue = ticketIssue.value.trim();
+            if (!issue) {
+                alert("Please describe the issue.");
+                ticketIssue.focus();
+                return;
+            }
+            try {
+                submitTicketBtn.disabled = true;
+                const res = await fetch(`${API_BASE}/tickets`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ issue: issue })
+                });
+                if (!res.ok) throw new Error("Failed to create ticket");
+                closeTicketModal();
+                await loadTickets();
+                alert("Ticket created successfully.");
+            } catch (error) {
+                console.error("Ticket creation error:", error);
+                alert("Unable to create ticket.");
+            } finally {
+                submitTicketBtn.disabled = false;
+            }
+        });
+
+        // =========================================
+        // LOAD TICKETS
+        // =========================================
+        async function loadTickets() {
+            try {
+                const res = await fetch(`${API_BASE}/tickets`);
+                if (!res.ok) throw new Error("Failed to load tickets");
+                const tickets = await res.json();
+                renderSidebarTickets(tickets);
+                renderDashboardTickets(tickets);
+            } catch (error) {
+                console.error("Loading tickets error:", error);
+            }
+        }
+
+        function renderSidebarTickets(tickets) {
+            sidebarTickets.innerHTML = "";
+            tickets.slice(0, 3).forEach((t) => {
+                const el = document.createElement("div");
+                el.className = "ticket-card";
+                const title = document.createElement("div");
+                title.textContent = `#${t.id} · ${t.issue}`;
+                const status = document.createElement("div");
+                status.className = "status";
+                status.textContent = `Status: ${String(t.status).replaceAll("_", " ")}`;
+                el.appendChild(title);
+                el.appendChild(status);
+                sidebarTickets.appendChild(el);
+            });
+        }
+
+        function renderDashboardTickets(tickets) {
+            ticketRows.innerHTML = "";
+            let open = 0, inProgress = 0, resolved = 0;
+            tickets.forEach((t) => {
+                if (t.status === "open") open++;
+                if (t.status === "in_progress") inProgress++;
+                if (t.status === "resolved") resolved++;
+                
+                const row = document.createElement("div");
+                row.className = "ticket-row";
+                
+                const id = document.createElement("span"); id.textContent = `#${t.id}`;
+                const issue = document.createElement("span"); issue.textContent = t.issue;
+                const status = document.createElement("span");
+                status.className = `status-${t.status}`;
+                status.textContent = String(t.status).replaceAll("_", " ");
+                const opened = document.createElement("span"); opened.textContent = t.opened;
+                
+                const deleteBtn = document.createElement("button");
+                deleteBtn.className = "delete-btn";
+                deleteBtn.textContent = "Delete";
+                deleteBtn.setAttribute("aria-label", `Delete ticket ${t.id}`);
+                deleteBtn.addEventListener("click", async () => { await deleteTicket(t.id); });
+
+                row.appendChild(id); row.appendChild(issue); row.appendChild(status);
+                row.appendChild(opened); row.appendChild(deleteBtn);
+                ticketRows.appendChild(row);
+            });
+            statOpen.textContent = open;
+            statProgress.textContent = inProgress;
+            statResolved.textContent = resolved;
+        }
+
+        async function deleteTicket(ticketId) {
+            try {
+                const res = await fetch(`${API_BASE}/tickets/${ticketId}`, { method: "DELETE" });
+                if (!res.ok) throw new Error("Failed to delete ticket");
+                await loadTickets();
+            } catch (error) {
+                console.error("Delete ticket error:", error);
+                alert("Unable to delete ticket.");
+            }
+        }
+
+        // =========================================
+        // INITIAL LOAD
+        // =========================================
+        loadTickets();
+    </script>
 </body>
 </html>

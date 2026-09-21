@@ -1,135 +1,461 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Voice IT Helpdesk</title>
-  <link rel="stylesheet" href="login.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice IT Helpdesk</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: linear-gradient(135deg, #f5f3ee 0%, #edf3fa 100%); color: #1d2433; }
+        button, input { font: inherit; }
+        button { cursor: pointer; }
+        .hidden { display: none !important; }
+        .auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 2rem 1rem; }
+        .auth-card { width: min(100%, 440px); background: rgba(255, 255, 255, 0.95); border: 1px solid #dfe5ef; border-radius: 20px; box-shadow: 0 18px 40px rgba(14, 23, 38, 0.08); padding: 1.5rem; }
+        .brand-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.4rem; }
+        .brand-icon { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #0f4c81 0%, #3083d9 100%); color: #ffffff; display: grid; place-items: center; font-weight: 700; }
+        .brand-title { font-weight: 700; font-size: 1.05rem; }
+        .brand-subtitle { color: #5f6b7a; font-size: 0.85rem; }
+        .auth-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: #edf3fa; border-radius: 12px; padding: 0.25rem; margin-bottom: 1.25rem; }
+        .auth-tab { border: none; background: transparent; color: #42536a; border-radius: 10px; padding: 0.75rem 1rem; font-weight: 600; }
+        .auth-tab.active { background: #ffffff; color: #092f57; box-shadow: 0 2px 8px rgba(15, 76, 129, 0.12); }
+        .field { margin-bottom: 1rem; }
+        .field label { display: block; margin-bottom: 0.45rem; color: #2f3d52; font-size: 0.92rem; font-weight: 600; }
+        .field input { width: 100%; border: 1px solid #d7e1ec; border-radius: 10px; padding: 0.8rem 0.9rem; background: #fff; color: #142130; }
+        .field input:focus { outline: 2px solid rgba(48, 131, 217, 0.18); border-color: #3b8fe9; }
+        .password-wrap { position: relative; }
+        .password-wrap input { padding-right: 4.5rem; }
+        .toggle-password { position: absolute; top: 50%; right: 0.55rem; transform: translateY(-50%); border: none; background: transparent; color: #3d6db2; font-weight: 600; }
+        .form-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 0.25rem 0 1rem; }
+        .checkbox-row { display: inline-flex; align-items: center; gap: 0.45rem; color: #4a5b6f; }
+        .checkbox-row input { width: auto; }
+        .text-link, .link-button { color: #0d5ca7; font-weight: 600; text-decoration: none; background: transparent; border: none; }
+        .auth-message { min-height: 20px; margin-bottom: 0.8rem; font-size: 0.88rem; font-weight: 600; }
+        .auth-message.error { color: #b12727; }
+        .auth-message.success { color: #1f7a50; }
+        .primary-btn { width: 100%; border: 1px solid #d3d9e4; border-radius: 10px; background: linear-gradient(135deg, #0f4c81 0%, #2d87d4 100%); color: #ffffff; padding: 0.8rem 1rem; font-weight: 600; }
+        .auth-footer { text-align: center; color: #49586c; margin: 1rem 0 0; font-size: 0.92rem; }
+        .app-card { max-width: 720px; margin: 0 auto; background: #ffffff; border: 1px solid #e0ded6; border-radius: 12px; overflow: hidden; }
+        .app-header { display: flex; align-items: center; gap: 10px; padding: 0.9rem 1.1rem; border-bottom: 1px solid #e0ded6; position: relative; }
+        .app-title { font-size: 15px; font-weight: 600; }
+        .session-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b6a63; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #3b6d11; }
+        .profile-wrap { position: relative; }
+        .avatar-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: #d6e6f8; color: #0c447c; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .profile-menu { display: none; position: absolute; top: 40px; right: 0; background: #ffffff; border: 1px solid #e0ded6; border-radius: 8px; min-width: 150px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); z-index: 10; overflow: hidden; }
+        .profile-menu.open { display: block; }
+        .profile-menu button { width: 100%; text-align: left; border: none; background: transparent; padding: 10px 12px; font-size: 13px; cursor: pointer; }
+        .profile-menu button:hover { background: #f5f4ef; }
+        .profile-menu button.danger { color: #a32d2d; border-top: 1px solid #e0ded6; }
+        .chat-layout { display: grid; grid-template-columns: 2fr 1fr; }
+        .chat-panel { padding: 1rem; border-right: 1px solid #e0ded6; }
+        .listening-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: #e6f1fb; color: #185fa5; border-radius: 8px; margin-bottom: 1rem; font-size: 13px; }
+        .message-list { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
+        .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 14px; }
+        .message .role { font-size: 12px; color: #9c9a91; margin: 0 0 2px; }
+        .message p { margin: 0; }
+        .message.user { align-self: flex-end; background: #f1efe8; }
+        .message.agent { align-self: flex-start; background: #ffffff; border: 1px solid #e0ded6; }
+        .controls { display: flex; gap: 8px; margin-top: 1.25rem; }
+        .controls button, .dashboard-toolbar button { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid #d3d1c7; background: #ffffff; color: #1d2433; font-size: 14px; cursor: pointer; }
+        .controls button:hover, .dashboard-toolbar button:hover { background: #f5f4ef; }
+        .sidebar { padding: 1rem; }
+        .sidebar-label { font-size: 13px; color: #6b6a63; margin: 0 0 10px; }
+        .ticket-card { border: 1px solid #e0ded6; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; }
+        .ticket-card .status { font-size: 12px; color: #6b6a63; margin-top: 2px; }
+        #dashboard-view { padding: 1rem; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1rem; }
+        .stat-card { background: #f1efe8; border-radius: 8px; padding: 12px; }
+        .stat-label { font-size: 12px; color: #6b6a63; margin: 0; }
+        .stat-value { font-size: 20px; font-weight: 600; margin: 4px 0 0; }
+        .ticket-table { border: 1px solid #e0ded6; border-radius: 8px; overflow: hidden; margin-top: 1rem; }
+        .ticket-row { display: grid; grid-template-columns: 70px 1fr 100px 90px 36px; gap: 8px; padding: 10px 12px; font-size: 13px; align-items: center; border-top: 1px solid #e0ded6; }
+        .ticket-row.header-row { background: #f1efe8; color: #6b6a63; font-size: 12px; border-top: none; font-weight: 700; }
+        .status-open { color: #a32d2d; }
+        .status-in_progress { color: #854f0b; }
+        .status-resolved { color: #3b6d11; }
+        .delete-btn { border: none; background: transparent; color: #a32d2d; cursor: pointer; font-size: 13px; }
+        .dashboard-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; }
+        .dashboard-toolbar button { flex: none; }
+        .dashboard-title { font-size: 15px; font-weight: 600; }
+        #create-btn { margin-left: auto; }
+        @media (max-width: 640px) {
+            body { padding: 0; }
+            .app-card { border-radius: 0; }
+            .chat-layout { grid-template-columns: 1fr; }
+            .chat-panel { border-right: none; border-bottom: 1px solid #e0ded6; }
+            .stats-row { grid-template-columns: 1fr; }
+            .ticket-row { grid-template-columns: 1fr; gap: 0.3rem; padding: 0.8rem 0.9rem; }
+            .ticket-row.header-row { display: none; }
+        }
+    </style>
 </head>
 <body>
-
-  <div id="auth-screen" class="auth-screen">
-    <div class="auth-card">
-      <div class="brand-row">
-        <div class="brand-icon">V</div>
-        <div>
-          <div class="brand-title">Voice IT helpdesk</div>
-          <div class="brand-subtitle">Customer portal</div>
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="auth-screen">
+        <div class="auth-card">
+            <div class="brand-row">
+                <div class="brand-icon">V</div>
+                <div>
+                    <div class="brand-title">Voice IT helpdesk</div>
+                    <div class="brand-subtitle">Customer portal</div>
+                </div>
+            </div>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-mode="login">Login</button>
+                <button class="auth-tab" data-mode="signup">Sign up</button>
+            </div>
+            <form id="auth-form">
+                <div id="auth-message" class="auth-message"></div>
+                <div id="full-name-row" class="field hidden">
+                    <label for="full-name">Full name</label>
+                    <input type="text" id="full-name" name="full_name" placeholder="John Doe">
+                </div>
+                <div class="field">
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" name="email" placeholder="you@example.com" required>
+                </div>
+                <div class="field password-wrap">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                    <button type="button" class="toggle-password" data-target="password" aria-label="Show password">Show</button>
+                </div>
+                <div id="confirm-password-row" class="field password-wrap hidden">
+                    <label for="confirm-password">Confirm password</label>
+                    <input type="password" id="confirm-password" name="confirm_password" required>
+                    <button type="button" class="toggle-password" data-target="confirm-password" aria-label="Show password">Show</button>
+                </div>
+                <div class="form-row">
+                    <label class="checkbox-row">
+                        <input type="checkbox" id="remember-me" name="remember_me">
+                        Remember me
+                    </label>
+                    <a href="#" class="text-link">Need help?</a>
+                </div>
+                <button type="submit" id="auth-submit" class="primary-btn">Log in</button>
+            </form>
+            <div class="auth-footer">
+                <span id="auth-switch-label">Need an account?</span>
+                <button type="button" id="auth-switch" class="link-button">Sign up</button>
+            </div>
         </div>
-      </div>
-
-      <div class="auth-tabs" role="tablist" aria-label="Authentication options">
-        <button type="button" class="auth-tab active" data-mode="login">Login</button>
-        <button type="button" class="auth-tab" data-mode="signup">Sign up</button>
-      </div>
-
-      <form id="auth-form" novalidate>
-        <div id="full-name-row" class="field hidden">
-          <label for="full-name">Full name</label>
-          <input id="full-name" name="full_name" type="text" placeholder="Jane Doe" maxlength="100" />
-        </div>
-
-        <div class="field">
-          <label for="email">Email address</label>
-          <input id="email" name="email" type="email" placeholder="name@example.com" autocomplete="email" required />
-        </div>
-
-        <div class="field">
-          <label for="password">Password</label>
-          <div class="password-wrap">
-            <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
-            <button type="button" class="toggle-password" data-target="password" aria-label="Show password">Show</button>
-          </div>
-        </div>
-
-        <div id="confirm-password-row" class="field hidden">
-          <label for="confirm-password">Confirm password</label>
-          <div class="password-wrap">
-            <input id="confirm-password" name="confirm_password" type="password" placeholder="Re-enter your password" autocomplete="new-password" />
-            <button type="button" class="toggle-password" data-target="confirm-password" aria-label="Show confirm password">Show</button>
-          </div>
-        </div>
-
-        <div class="form-row compact">
-          <label class="checkbox-row"><input type="checkbox" id="remember-me" checked /> Remember me</label>
-          <a href="#" class="text-link" tabindex="-1">Need help?</a>
-        </div>
-
-        <div id="auth-message" class="auth-message" role="alert" aria-live="polite"></div>
-
-        <button id="auth-submit" type="submit" class="primary-btn">Log in</button>
-      </form>
-
-      <p class="auth-footer">
-        <span id="auth-switch-label">Need an account?</span>
-        <button type="button" id="auth-switch" class="link-button">Sign up</button>
-      </p>
     </div>
-  </div>
 
-  <div id="app-shell" class="hidden">
-    <div class="app-card">
-      <header class="app-header">
-        <span class="app-title">Voice IT helpdesk</span>
-        <span class="session-status">
-          <span class="status-dot"></span>
-          <span id="session-label">Session active</span>
-        </span>
-
-        <div class="profile-wrap">
-          <button id="profile-btn" class="avatar-btn" aria-label="Profile menu">AR</button>
-          <div id="profile-menu" class="profile-menu">
-            <button id="settings-btn">Settings</button>
-            <button id="logout-btn" class="danger">Log out</button>
-          </div>
-        </div>
-      </header>
-
-      <section id="chat-view">
-        <div class="chat-layout">
-          <div class="chat-panel">
-            <div class="listening-pill">Listening...</div>
-
-            <div id="message-list" class="message-list">
-              <!-- messages injected by app.js -->
+    <!-- App Shell (Hidden by default) -->
+    <div id="app-shell" class="hidden">
+        <div class="app-card">
+            <div class="app-header">
+                <div class="brand-icon" style="width: 32px; height: 32px; font-size: 14px;">V</div>
+                <div class="app-title">Voice IT helpdesk</div>
+                <div class="session-status">
+                    <span class="status-dot"></span>
+                    <span id="session-label">Session active</span>
+                </div>
+                <div class="profile-wrap">
+                    <button id="profile-btn" class="avatar-btn" title="Customer">CU</button>
+                    <div id="profile-menu" class="profile-menu">
+                        <button id="settings-btn">Settings</button>
+                        <button id="logout-btn" class="danger">Log out</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="chat-view" class="chat-layout">
+                <div class="chat-panel">
+                    <div class="listening-pill">
+                        <span class="status-dot" style="background: #3b8fe9;"></span>
+                        Listening...
+                    </div>
+                    <div id="message-list" class="message-list"></div>
+                    <div class="controls">
+                        <button id="start-btn">Start conversation</button>
+                        <button id="tickets-btn">My tickets</button>
+                    </div>
+                </div>
+                <div class="sidebar">
+                    <div class="sidebar-label">Open tickets</div>
+                    <div id="sidebar-tickets"></div>
+                </div>
             </div>
 
-            <div class="controls">
-              <button id="start-btn">Start conversation</button>
-              <button id="tickets-btn">My tickets</button>
+            <div id="dashboard-view" class="hidden">
+                <div style="padding: 1rem;">
+                    <div class="dashboard-toolbar">
+                        <button id="back-btn">Back</button>
+                        <div class="dashboard-title">Tickets dashboard</div>
+                        <button id="create-btn">Create ticket</button>
+                    </div>
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-label">Open</div>
+                            <div id="stat-open" class="stat-value">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">In progress</div>
+                            <div id="stat-progress" class="stat-value">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Resolved</div>
+                            <div id="stat-resolved" class="stat-value">0</div>
+                        </div>
+                    </div>
+                    <div class="ticket-table">
+                        <div class="ticket-row header-row">
+                            <span>ID</span>
+                            <span>Issue</span>
+                            <span>Status</span>
+                            <span>Opened</span>
+                            <span></span>
+                        </div>
+                        <div id="ticket-rows"></div>
+                    </div>
+                </div>
             </div>
-          </div>
-
-          <div class="sidebar">
-            <p class="sidebar-label">Open tickets</p>
-            <div id="sidebar-tickets"></div>
-          </div>
         </div>
-      </section>
-
-      <section id="dashboard-view" class="hidden">
-        <div class="dashboard-toolbar">
-          <button id="back-btn">Back</button>
-          <span class="dashboard-title">Tickets dashboard</span>
-          <button id="create-btn">Create ticket</button>
-        </div>
-
-        <div class="stats-row">
-          <div class="stat-card"><p class="stat-label">Open</p><p id="stat-open" class="stat-value">0</p></div>
-          <div class="stat-card"><p class="stat-label">In progress</p><p id="stat-progress" class="stat-value">0</p></div>
-          <div class="stat-card"><p class="stat-label">Resolved</p><p id="stat-resolved" class="stat-value">0</p></div>
-        </div>
-
-        <div class="ticket-table">
-          <div class="ticket-row header-row">
-            <span>ID</span><span>Issue</span><span>Status</span><span>Opened</span><span></span>
-          </div>
-          <div id="ticket-rows"></div>
-        </div>
-      </section>
     </div>
-  </div>
 
-  <script src="login.js"></script>
+    <script>
+        const API_BASE = "http://127.0.0.1:8000/api";
+        let sessionId = null;
+        const state = { authMode: "login", user: null };
+        const authScreen = document.getElementById("auth-screen");
+        const appShell = document.getElementById("app-shell");
+        const authForm = document.getElementById("auth-form");
+        const authMessageEl = document.getElementById("auth-message");
+        const authSubmitBtn = document.getElementById("auth-submit");
+        const authSwitchBtn = document.getElementById("auth-switch");
+        const authSwitchLabel = document.getElementById("auth-switch-label");
+        const fullNameRow = document.getElementById("full-name-row");
+        const confirmPasswordRow = document.getElementById("confirm-password-row");
+        const profileBtn = document.getElementById("profile-btn");
+        const profileMenu = document.getElementById("profile-menu");
+        const logoutBtn = document.getElementById("logout-btn");
+        const settingsBtn = document.getElementById("settings-btn");
+        const sessionLabel = document.getElementById("session-label");
+        const chatView = document.getElementById("chat-view");
+        const dashboardView = document.getElementById("dashboard-view");
+        const ticketsBtn = document.getElementById("tickets-btn");
+        const backBtn = document.getElementById("back-btn");
+        const createBtn = document.getElementById("create-btn");
+        const startBtn = document.getElementById("start-btn");
+        const messageList = document.getElementById("message-list");
+        const sidebarTickets = document.getElementById("sidebar-tickets");
+        const ticketRows = document.getElementById("ticket-rows");
+        const statOpen = document.getElementById("stat-open");
+        const statProgress = document.getElementById("stat-progress");
+        const statResolved = document.getElementById("stat-resolved");
+
+        function setAuthMessage(message, type = "error") {
+            authMessageEl.textContent = message || "";
+            authMessageEl.classList.toggle("error", type === "error");
+            authMessageEl.classList.toggle("success", type === "success");
+        }
+
+        function setAuthMode(mode) {
+            state.authMode = mode;
+            const isSignup = mode === "signup";
+            fullNameRow.classList.toggle("hidden", !isSignup);
+            confirmPasswordRow.classList.toggle("hidden", !isSignup);
+            document.getElementById("full-name").required = isSignup;
+            document.getElementById("confirm-password").required = isSignup;
+            document.querySelectorAll(".auth-tab").forEach((tab) => {
+                tab.classList.toggle("active", tab.dataset.mode === mode);
+            });
+            if (isSignup) {
+                authSubmitBtn.textContent = "Create account";
+                authSwitchLabel.textContent = "Already have an account?";
+                authSwitchBtn.textContent = "Login";
+                document.getElementById("remember-me").closest(".form-row").classList.add("hidden");
+            } else {
+                authSubmitBtn.textContent = "Log in";
+                authSwitchLabel.textContent = "Need an account?";
+                authSwitchBtn.textContent = "Sign up";
+                document.getElementById("remember-me").closest(".form-row").classList.remove("hidden");
+            }
+        }
+
+        function getInitials(name) {
+            const cleanName = (name || "Customer").trim();
+            const parts = cleanName.split(/\s+/).filter(Boolean);
+            if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+            return cleanName.slice(0, 2).toUpperCase() || "CU";
+        }
+
+        function updateProfile() {
+            if (!state.user) {
+                profileBtn.textContent = "CU";
+                profileBtn.title = "Customer";
+                sessionLabel.textContent = "Logged out";
+                return;
+            }
+            profileBtn.textContent = getInitials(state.user.full_name || state.user.email);
+            profileBtn.title = state.user.full_name || state.user.email;
+            sessionLabel.textContent = `Welcome, ${state.user.full_name?.split(" ")[0] || "customer"}`;
+        }
+
+        function showAppView() {
+            authScreen.classList.add("hidden");
+            appShell.classList.remove("hidden");
+            updateProfile();
+            loadTickets();
+        }
+
+        function showAuthView() {
+            appShell.classList.add("hidden");
+            authScreen.classList.remove("hidden");
+            setAuthMessage("");
+            updateProfile();
+        }
+
+        async function apiFetch(path, options = {}) {
+            const requestHeaders = { Accept: "application/json", ...(options.headers || {}) };
+            if (options.body && !requestHeaders["Content-Type"]) requestHeaders["Content-Type"] = "application/json";
+            const response = await fetch(`${API_BASE}${path}`, { ...options, credentials: "include", headers: requestHeaders });
+            const contentType = response.headers.get("content-type") || "";
+            const payload = contentType.includes("application/json") ? await response.json() : await response.text();
+            if (!response.ok) {
+                const message = payload?.detail || payload?.message || "Request failed.";
+                const errorMessage = Array.isArray(message) ? message.map((entry) => entry.msg || entry).join(" ") : message;
+                throw new Error(errorMessage);
+            }
+            return payload;
+        }
+
+        async function checkAuthState() {
+            try {
+                state.user = await apiFetch("/auth/me");
+                showAppView();
+            } catch (error) {
+                state.user = null;
+                showAuthView();
+            }
+        }
+
+        async function loadTickets() {
+            try {
+                const tickets = await apiFetch("/tickets");
+                renderSidebarTickets(tickets);
+                renderDashboardTickets(tickets);
+            } catch (error) {
+                console.error("Unable to load tickets:", error);
+            }
+        }
+
+        function addMessage(role, text) {
+            const el = document.createElement("div");
+            el.className = `message ${role}`;
+            el.innerHTML = `<p class="role">${role === "user" ? "User" : "Agent"}</p><p>${text}</p>`;
+            messageList.appendChild(el);
+        }
+
+        function renderSidebarTickets(tickets) {
+            sidebarTickets.innerHTML = "";
+            tickets.slice(0, 3).forEach((ticket) => {
+                const el = document.createElement("div");
+                el.className = "ticket-card";
+                el.innerHTML = `<div>#${ticket.id} &middot; ${ticket.issue}</div><div class="status">Status: ${ticket.status.replace("_", " ")}</div>`;
+                sidebarTickets.appendChild(el);
+            });
+        }
+
+        function renderDashboardTickets(tickets) {
+            ticketRows.innerHTML = "";
+            let open = 0, inProgress = 0, resolved = 0;
+            tickets.forEach((ticket) => {
+                if (ticket.status === "open") open += 1;
+                if (ticket.status === "in_progress") inProgress += 1;
+                if (ticket.status === "resolved") resolved += 1;
+                const row = document.createElement("div");
+                row.className = "ticket-row";
+                row.innerHTML = `<span>#${ticket.id}</span><span>${ticket.issue}</span><span class="status-${ticket.status}">${ticket.status.replace("_", " ")}</span><span>${ticket.opened}</span><button class="delete-btn" data-id="${ticket.id}" aria-label="Delete ticket ${ticket.id}">Delete</button>`;
+                ticketRows.appendChild(row);
+            });
+            statOpen.textContent = open;
+            statProgress.textContent = inProgress;
+            statResolved.textContent = resolved;
+            document.querySelectorAll(".delete-btn").forEach((btn) => {
+                btn.addEventListener("click", async () => {
+                    await apiFetch(`/tickets/${btn.dataset.id}`, { method: "DELETE" });
+                    await loadTickets();
+                });
+            });
+        }
+
+        async function handleAuthSubmit(event) {
+            event.preventDefault();
+            const formData = new FormData(authForm);
+            const fullName = (formData.get("full_name") || "").toString().trim();
+            const email = (formData.get("email") || "").toString().trim();
+            const password = (formData.get("password") || "").toString();
+            const confirmPassword = (formData.get("confirm_password") || "").toString();
+            try {
+                if (state.authMode === "signup") {
+                    if (!fullName) throw new Error("Full name is required.");
+                    if (password !== confirmPassword) throw new Error("Passwords do not match.");
+                    await apiFetch("/auth/register", { method: "POST", body: JSON.stringify({ full_name: fullName, email, password, confirm_password: confirmPassword }) });
+                    setAuthMode("login");
+                    document.getElementById("email").value = email;
+                    setAuthMessage("Account created successfully. You can now log in.", "success");
+                    return;
+                }
+                if (!email || !password) throw new Error("Email and password are required.");
+                const user = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+                state.user = user;
+                showAppView();
+            } catch (error) {
+                setAuthMessage(error.message || "Unable to process your request.");
+            }
+        }
+
+        function bindAuthControls() {
+            document.querySelectorAll(".auth-tab").forEach((tab) => {
+                tab.addEventListener("click", () => { setAuthMode(tab.dataset.mode); setAuthMessage(""); });
+            });
+            authSwitchBtn.addEventListener("click", () => {
+                const nextMode = state.authMode === "login" ? "signup" : "login";
+                setAuthMode(nextMode); setAuthMessage("");
+            });
+            authForm.addEventListener("submit", handleAuthSubmit);
+            document.querySelectorAll(".toggle-password").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const input = document.getElementById(button.dataset.target);
+                    if (!input) return;
+                    const isPassword = input.type === "password";
+                    input.type = isPassword ? "text" : "password";
+                    button.textContent = isPassword ? "Hide" : "Show";
+                    button.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+                });
+            });
+        }
+
+        profileBtn.addEventListener("click", () => profileMenu.classList.toggle("open"));
+        document.addEventListener("click", (event) => {
+            if (!profileBtn.contains(event.target) && !profileMenu.contains(event.target)) profileMenu.classList.remove("open");
+        });
+        logoutBtn.addEventListener("click", async () => {
+            try { await apiFetch("/auth/logout", { method: "POST" }); state.user = null; showAuthView(); } 
+            catch (error) { console.error("Logout failed:", error); showAuthView(); }
+        });
+        settingsBtn.addEventListener("click", () => alert("Settings screen not built yet — placeholder for now."));
+        ticketsBtn.addEventListener("click", async () => { chatView.classList.add("hidden"); dashboardView.classList.remove("hidden"); await loadTickets(); });
+        backBtn.addEventListener("click", () => { dashboardView.classList.add("hidden"); chatView.classList.remove("hidden"); });
+        startBtn.addEventListener("click", async () => {
+            const response = await apiFetch("/session/start", { method: "POST" });
+            sessionId = response.session_id;
+            addMessage("user", "My VPN isn't working");
+            const msg = await apiFetch("/message", { method: "POST", body: JSON.stringify({ session_id: sessionId, text: "My VPN isn't working" }) });
+            addMessage("agent", msg.text);
+        });
+        createBtn.addEventListener("click", async () => {
+            const issue = prompt("Describe the issue:", "New ticket");
+            if (!issue) return;
+            await apiFetch("/tickets", { method: "POST", body: JSON.stringify({ issue }) });
+            await loadTickets();
+        });
+
+        bindAuthControls();
+        setAuthMode("login");
+        checkAuthState();
+    </script>
 </body>
 </html>
