@@ -34,6 +34,10 @@
         .auth-message.error { color: #b12727; }
         .auth-message.success { color: #1f7a50; }
         .primary-btn { width: 100%; border: 1px solid #d3d9e4; border-radius: 10px; background: linear-gradient(135deg, #0f4c81 0%, #2d87d4 100%); color: #ffffff; padding: 0.8rem 1rem; font-weight: 600; }
+        .secondary-btn { width: 100%; border: 1px solid #d7e1ec; border-radius: 10px; background: #ffffff; color: #1d2433; padding: 0.8rem 1rem; font-weight: 600; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .secondary-btn:hover { background: #f5f7fb; }
+        .divider { display: flex; align-items: center; gap: 12px; margin: 1.2rem 0; color: #6b6a63; font-size: 0.85rem; }
+        .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #dfe5ef; }
         .auth-footer { text-align: center; color: #49586c; margin: 1rem 0 0; font-size: 0.92rem; }
         .app-card { max-width: 720px; margin: 0 auto; background: #ffffff; border: 1px solid #e0ded6; border-radius: 12px; overflow: hidden; }
         .app-header { display: flex; align-items: center; gap: 10px; padding: 0.9rem 1.1rem; border-bottom: 1px solid #e0ded6; position: relative; }
@@ -133,6 +137,13 @@
                     <a href="#" class="text-link">Need help?</a>
                 </div>
                 <button type="submit" id="auth-submit" class="primary-btn">Log in</button>
+
+                <!-- Microsoft Entra ID -->
+                <div class="divider">or</div>
+                <button type="button" id="ms-login-btn" class="secondary-btn">
+                    <svg width="16" height="16" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+                    Continue with Microsoft
+                </button>
             </form>
             <div class="auth-footer">
                 <span id="auth-switch-label">Need an account?</span>
@@ -215,7 +226,8 @@
     </div>
 
     <script>
-        const API_BASE = "http://127.0.0.1:8000/api";
+        // Use relative API base so it works on both localhost:8000 and 127.0.0.1:8000
+        const API_BASE = window.location.origin + "/api";
         let sessionId = null;
         const state = { authMode: "login", user: null };
         const authScreen = document.getElementById("auth-screen");
@@ -244,6 +256,7 @@
         const statOpen = document.getElementById("stat-open");
         const statProgress = document.getElementById("stat-progress");
         const statResolved = document.getElementById("stat-resolved");
+        const msLoginBtn = document.getElementById("ms-login-btn");
 
         function setAuthMessage(message, type = "error") {
             authMessageEl.textContent = message || "";
@@ -290,7 +303,8 @@
             }
             profileBtn.textContent = getInitials(state.user.full_name || state.user.email);
             profileBtn.title = state.user.full_name || state.user.email;
-            sessionLabel.textContent = `Welcome, ${state.user.full_name?.split(" ")[0] || "customer"}`;
+            const providerBadge = state.user.auth_provider === 'microsoft' ? ' (Microsoft)' : '';
+            sessionLabel.textContent = `Welcome, ${state.user.full_name?.split(" ")[0] || "customer"}${providerBadge}`;
         }
 
         function showAppView() {
@@ -426,6 +440,10 @@
                     button.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
                 });
             });
+            // Microsoft Entra ID login
+            msLoginBtn.addEventListener("click", () => {
+                window.location.href = `${API_BASE}/auth/microsoft/login`;
+            });
         }
 
         profileBtn.addEventListener("click", () => profileMenu.classList.toggle("open"));
@@ -433,7 +451,11 @@
             if (!profileBtn.contains(event.target) && !profileMenu.contains(event.target)) profileMenu.classList.remove("open");
         });
         logoutBtn.addEventListener("click", async () => {
-            try { await apiFetch("/auth/logout", { method: "POST" }); state.user = null; showAuthView(); } 
+            try { 
+                await apiFetch("/auth/logout", { method: "POST" }); 
+                state.user = null; 
+                showAuthView(); 
+            } 
             catch (error) { console.error("Logout failed:", error); showAuthView(); }
         });
         settingsBtn.addEventListener("click", () => alert("Settings screen not built yet — placeholder for now."));
