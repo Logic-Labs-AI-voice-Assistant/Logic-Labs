@@ -60,6 +60,10 @@
         .message p { margin: 0; }
         .message.user { align-self: flex-end; background: #f1efe8; }
         .message.agent { align-self: flex-start; background: #ffffff; border: 1px solid #e0ded6; }
+        .message-composer { display: flex; gap: 8px; margin-top: 1rem; align-items: flex-end; }
+        .message-composer textarea { flex: 1; min-height: 42px; max-height: 120px; resize: vertical; padding: 10px 12px; border: 1px solid #d3d1c7; border-radius: 8px; font: inherit; }
+        .message-composer button { min-height: 42px; padding: 10px 16px; border: 1px solid #185fa5; border-radius: 8px; background: #185fa5; color: #ffffff; cursor: pointer; }
+        .message-composer button:disabled { opacity: 0.6; cursor: not-allowed; }
         .controls { display: flex; gap: 8px; margin-top: 1.25rem; }
         .controls button, .dashboard-toolbar button { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid #d3d1c7; background: #ffffff; color: #1d2433; font-size: 14px; cursor: pointer; }
         .controls button:hover, .dashboard-toolbar button:hover { background: #f5f4ef; }
@@ -83,6 +87,17 @@
         .dashboard-toolbar button { flex: none; }
         .dashboard-title { font-size: 15px; font-weight: 600; }
         #create-btn { margin-left: auto; }
+        .ticket-modal { position: fixed; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(15, 25, 38, 0.35); z-index: 20; }
+        .ticket-modal.hidden { display: none; }
+        .ticket-modal-card { width: min(100%, 440px); background: #ffffff; border: 1px solid #dfe5ef; border-radius: 12px; padding: 1.25rem; box-shadow: 0 18px 40px rgba(14, 23, 38, 0.18); }
+        .ticket-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        .ticket-modal-header h2 { margin: 0; font-size: 1.1rem; }
+        .ticket-modal-close { border: none; background: transparent; color: #5f6b7a; font-size: 1.5rem; cursor: pointer; }
+        .ticket-modal label { display: block; margin: 1rem 0 0.45rem; color: #2f3d52; font-size: 0.92rem; font-weight: 600; }
+        .ticket-modal textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid #d7e1ec; border-radius: 10px; padding: 0.8rem; font: inherit; }
+        .ticket-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+        .ticket-modal-actions button { border: 1px solid #d3d9e4; border-radius: 10px; padding: 0.65rem 0.9rem; cursor: pointer; }
+        .ticket-modal-actions .submit-ticket { background: #0f4c81; color: #ffffff; border-color: #0f4c81; }
         @media (max-width: 640px) {
             body { padding: 0; }
             .app-card { border-radius: 0; }
@@ -178,6 +193,10 @@
                         Listening...
                     </div>
                     <div id="message-list" class="message-list"></div>
+                    <div class="message-composer">
+                        <textarea id="message-input" rows="2" placeholder="Type your IT issue..."></textarea>
+                        <button id="send-message-btn" type="button">Send</button>
+                    </div>
                     <div class="controls">
                         <button id="start-btn">Start conversation</button>
                         <button id="tickets-btn">My tickets</button>
@@ -225,6 +244,21 @@
         </div>
     </div>
 
+    <div id="ticket-modal" class="ticket-modal hidden" role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title">
+        <div class="ticket-modal-card">
+            <div class="ticket-modal-header">
+                <h2 id="ticket-modal-title">Create a ticket</h2>
+                <button id="close-ticket-modal" class="ticket-modal-close" type="button" aria-label="Close">&times;</button>
+            </div>
+            <label for="ticket-issue">Describe your IT issue</label>
+            <textarea id="ticket-issue" placeholder="Example: VPN is not connecting"></textarea>
+            <div class="ticket-modal-actions">
+                <button id="cancel-ticket" type="button">Cancel</button>
+                <button id="submit-ticket" class="submit-ticket" type="button">Create ticket</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Use relative API base so it works on both localhost:8000 and 127.0.0.1:8000
         const API_BASE = window.location.origin + "/api";
@@ -251,12 +285,17 @@
         const createBtn = document.getElementById("create-btn");
         const startBtn = document.getElementById("start-btn");
         const messageList = document.getElementById("message-list");
+        const messageInput = document.getElementById("message-input");
+        const sendMessageBtn = document.getElementById("send-message-btn");
         const sidebarTickets = document.getElementById("sidebar-tickets");
         const ticketRows = document.getElementById("ticket-rows");
         const statOpen = document.getElementById("stat-open");
         const statProgress = document.getElementById("stat-progress");
         const statResolved = document.getElementById("stat-resolved");
         const msLoginBtn = document.getElementById("ms-login-btn");
+        const ticketModal = document.getElementById("ticket-modal");
+        const ticketIssue = document.getElementById("ticket-issue");
+        const submitTicketBtn = document.getElementById("submit-ticket");
 
         function setAuthMessage(message, type = "error") {
             authMessageEl.textContent = message || "";
@@ -358,8 +397,27 @@
         function addMessage(role, text) {
             const el = document.createElement("div");
             el.className = `message ${role}`;
-            el.innerHTML = `<p class="role">${role === "user" ? "User" : "Agent"}</p><p>${text}</p>`;
+            const roleLabel = document.createElement("p");
+            roleLabel.className = "role";
+            roleLabel.textContent = role === "user" ? "You" : "Agent";
+            const messageText = document.createElement("p");
+            messageText.textContent = text;
+            el.append(roleLabel, messageText);
             messageList.appendChild(el);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        async function sendUserMessage(text) {
+            if (!sessionId) {
+                const response = await apiFetch("/session/start", { method: "POST" });
+                sessionId = response.session_id;
+            }
+            addMessage("user", text);
+            const message = await apiFetch("/message", {
+                method: "POST",
+                body: JSON.stringify({ session_id: sessionId, text })
+            });
+            addMessage("agent", message.text);
         }
 
         function renderSidebarTickets(tickets) {
@@ -462,17 +520,52 @@
         ticketsBtn.addEventListener("click", async () => { chatView.classList.add("hidden"); dashboardView.classList.remove("hidden"); await loadTickets(); });
         backBtn.addEventListener("click", () => { dashboardView.classList.add("hidden"); chatView.classList.remove("hidden"); });
         startBtn.addEventListener("click", async () => {
-            const response = await apiFetch("/session/start", { method: "POST" });
-            sessionId = response.session_id;
-            addMessage("user", "My VPN isn't working");
-            const msg = await apiFetch("/message", { method: "POST", body: JSON.stringify({ session_id: sessionId, text: "My VPN isn't working" }) });
-            addMessage("agent", msg.text);
+            startBtn.disabled = true;
+            try { await sendUserMessage("My VPN isn't working"); }
+            catch (error) { addMessage("agent", "I could not start the conversation. Please try again."); }
+            finally { startBtn.disabled = false; }
         });
-        createBtn.addEventListener("click", async () => {
-            const issue = prompt("Describe the issue:", "New ticket");
-            if (!issue) return;
-            await apiFetch("/tickets", { method: "POST", body: JSON.stringify({ issue }) });
-            await loadTickets();
+        sendMessageBtn.addEventListener("click", async () => {
+            const text = messageInput.value.trim();
+            if (!text) return;
+            messageInput.value = "";
+            sendMessageBtn.disabled = true;
+            try { await sendUserMessage(text); }
+            catch (error) { addMessage("agent", "I could not send that message. Please try again."); }
+            finally { sendMessageBtn.disabled = false; messageInput.focus(); }
+        });
+        messageInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessageBtn.click();
+            }
+        });
+        function closeTicketModal() {
+            ticketModal.classList.add("hidden");
+            ticketIssue.value = "";
+        }
+        createBtn.addEventListener("click", () => {
+            ticketModal.classList.remove("hidden");
+            ticketIssue.focus();
+        });
+        document.getElementById("close-ticket-modal").addEventListener("click", closeTicketModal);
+        document.getElementById("cancel-ticket").addEventListener("click", closeTicketModal);
+        ticketModal.addEventListener("click", (event) => {
+            if (event.target === ticketModal) closeTicketModal();
+        });
+        submitTicketBtn.addEventListener("click", async () => {
+            const issue = ticketIssue.value.trim();
+            if (!issue) { ticketIssue.focus(); return; }
+            submitTicketBtn.disabled = true;
+            try {
+                await apiFetch("/tickets", { method: "POST", body: JSON.stringify({ issue }) });
+                closeTicketModal();
+                await loadTickets();
+            } catch (error) {
+                console.error("Ticket creation failed:", error);
+            } finally {
+                submitTicketBtn.disabled = false;
+            }
         });
 
         bindAuthControls();

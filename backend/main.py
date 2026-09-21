@@ -1,6 +1,5 @@
 import hashlib
 import hmac
-import itertools
 import os
 import re
 import secrets
@@ -52,16 +51,9 @@ if SESSION_COOKIE_SAMESITE == "none" and not SESSION_COOKIE_SECURE:
 from backend.auth import oauth, AUTH_SESSIONS, ensure_schema
 
 # ============================================================
-# IN-MEMORY STORAGE
+# RUNTIME STORAGE
 # ============================================================
 CONVERSATION_SESSIONS: Dict[str, Dict[str, Any]] = {}
-# Use AUTH_SESSIONS from auth.py as single source of truth
-TICKETS: Dict[str, Dict[str, str]] = {
-    "4821": {"id": "4821", "issue": "DNS failure", "status": "in_progress", "opened": "Today"},
-    "4802": {"id": "4802", "issue": "VPN timeout", "status": "open", "opened": "2 days ago"},
-    "4790": {"id": "4790", "issue": "Password reset", "status": "resolved", "opened": "5 days ago"},
-}
-_ticket_id_counter = itertools.count(4900)
 
 # ============================================================
 # FASTAPI APP
@@ -97,8 +89,21 @@ def get_db_connection() -> sqlite3.Connection:
     return conn
 
 def init_db() -> None:
-    # This now handles both local and Entra ID columns
     ensure_schema()
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tickets (
+                id TEXT PRIMARY KEY,
+                customer_id TEXT NOT NULL,
+                issue TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.commit()
 
 init_db()
 
@@ -202,6 +207,24 @@ class Ticket(BaseModel):
     status: str
     opened: str
 
+def serialize_ticket(row: sqlite3.Row) -> Dict[str, str]:
+    return {
+        "id": row["id"],
+        "issue": row["issue"],
+        "status": row["status"],
+        "opened": row["created_at"],
+    }
+
+def get_customer_ticket(ticket_id: str, customer_id: str) -> sqlite3.Row:
+    with get_db_connection() as conn:
+        row = conn.execute(
+            "SELECT id, issue, status, created_at FROM tickets WHERE id = ? AND customer_id = ?",
+            (ticket_id, customer_id),
+        ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return row
+
 class CustomerRegisterIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     full_name: str
@@ -244,40 +267,66 @@ class CustomerLoginIn(BaseModel):
     password: str
 
 # ============================================================
-# CONVERSATION & TICKETS (PUBLIC - or protect if you want)
+# CONVERSATION & TICKETS
 # ============================================================
 @app.post("/api/session/start")
-def start_session():
+def start_session(request: Request):
+    customer = get_current_customer(request)
     session_id = str(uuid.uuid4())
-    CONVERSATION_SESSIONS[session_id] = {"created_at": utc_now_iso(), "history": []}
+    CONVERSATION_SESSIONS[session_id] = {
+        "created_at": utc_now_iso(),
+        "user_id": customer["id"],
+        "history": [],
+    }
     return {"session_id": session_id}
 
 @app.post("/api/message", response_model=MessageOut)
-def send_message(payload: MessageIn):
-    if payload.session_id not in CONVERSATION_SESSIONS:
+def send_message(payload: MessageIn, request: Request):
+    customer = get_current_customer(request)
+    conversation = CONVERSATION_SESSIONS.get(payload.session_id)
+    if conversation is None or conversation["user_id"] != customer["id"]:
         raise HTTPException(status_code=404, detail="Session not found")
     reply_text = "I'll check your device status now. Your wifi is connected but DNS is failing. I've opened a ticket for this."
-    CONVERSATION_SESSIONS[payload.session_id]["history"].append({"role": "user", "text": payload.text})
-    CONVERSATION_SESSIONS[payload.session_id]["history"].append({"role": "agent", "text": reply_text})
+    conversation["history"].append({"role": "user", "text": payload.text})
+    conversation["history"].append({"role": "agent", "text": reply_text})
     return MessageOut(role="agent", text=reply_text, timestamp=utc_now_iso())
 
 @app.get("/api/tickets", response_model=List[Ticket])
-def get_tickets():
-    return list(TICKETS.values())
+def get_tickets(request: Request):
+    customer = get_current_customer(request)
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, issue, status, created_at FROM tickets WHERE customer_id = ? ORDER BY created_at DESC",
+            (customer["id"],),
+        ).fetchall()
+    return [serialize_ticket(row) for row in rows]
 
 @app.post("/api/tickets", response_model=Ticket)
-def create_ticket(payload: TicketIn):
-    new_id = str(next(_ticket_id_counter))
-    issue = payload.issue.strip() or "New ticket"
-    ticket = {"id": new_id, "issue": issue, "status": "open", "opened": "Just now"}
-    TICKETS[new_id] = ticket
-    return ticket
+def create_ticket(payload: TicketIn, request: Request):
+    customer = get_current_customer(request)
+    issue = payload.issue.strip()
+    if not issue:
+        raise HTTPException(status_code=422, detail="Issue description is required.")
+    ticket_id = uuid.uuid4().hex[:8]
+    created_at = utc_now_iso()
+    with get_db_connection() as conn:
+        conn.execute(
+            "INSERT INTO tickets (id, customer_id, issue, status, created_at) VALUES (?, ?, ?, 'open', ?)",
+            (ticket_id, customer["id"], issue, created_at),
+        )
+        conn.commit()
+    return {"id": ticket_id, "issue": issue, "status": "open", "opened": created_at}
 
 @app.delete("/api/tickets/{ticket_id}")
-def delete_ticket(ticket_id: str):
-    if ticket_id not in TICKETS:
-        raise HTTPException(status_code=404, detail="Ticket not found")
-    del TICKETS[ticket_id]
+def delete_ticket(ticket_id: str, request: Request):
+    customer = get_current_customer(request)
+    get_customer_ticket(ticket_id, customer["id"])
+    with get_db_connection() as conn:
+        conn.execute(
+            "DELETE FROM tickets WHERE id = ? AND customer_id = ?",
+            (ticket_id, customer["id"]),
+        )
+        conn.commit()
     return {"deleted": ticket_id}
 
 # ============================================================
