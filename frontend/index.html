@@ -1,551 +1,1402 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice IT Helpdesk</title>
+    <title>Voice — IT Helpdesk</title>
+
     <style>
-        /* =========================================
-        BASE & LAYOUT STYLES
-        ========================================= */
+        :root {
+            --ink: #183126;
+            --sub: #617168;
+            --paper: #f6f6f0;
+            --lime: #b9f58a;
+            --mint: #dcf8d3;
+            --line: #dce5db;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 1rem;
-            background: #f5f4ef;
-            color: #1a1a1a;
-        }
-        .hidden { display: none !important; }
-        .chat-layout {
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 1rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .sidebar {
-            background: #ffffff;
-            border: 1px solid #e0ded6;
-            border-radius: 12px;
-            padding: 1rem;
-        }
-        .chat-panel {
-            background: #ffffff;
-            border: 1px solid #e0ded6;
-            border-radius: 12px;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-        }
-        .message-list {
-            flex: 1;
-            overflow-y: auto;
-            border: 1px solid #e0ded6;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            min-height: 300px;
-            background: #fafafa;
-        }
-        .message { margin-bottom: 1rem; }
-        .message.user { text-align: right; }
-        .message.user .role { font-weight: 600; color: #185fa5; font-size: 12px; }
-        .message.agent { text-align: left; }
-        .message.agent .role { font-weight: 600; color: #6b6a63; font-size: 12px; }
-        
-        .ticket-card {
-            background: #f9f9f9;
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
-            border-radius: 6px;
-            border: 1px solid #e0ded6;
-            font-size: 13px;
-        }
-        .ticket-row {
-            display: grid;
-            grid-template-columns: 60px 1fr 100px 100px 80px;
-            gap: 0.5rem;
-            padding: 0.75rem;
-            background: #fff;
-            border-bottom: 1px solid #eee;
-            align-items: center;
-            font-size: 14px;
-        }
-        .status-open { color: #d97706; font-weight: 600; }
-        .status-in_progress { color: #2563eb; font-weight: 600; }
-        .status-resolved { color: #16a34a; font-weight: 600; }
-        .delete-btn {
-            background: #fee2e2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
-            border-radius: 6px;
-            padding: 4px 8px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .delete-btn:hover { background: #fecaca; }
-        .stats {
-            display: flex;
-            gap: 1rem;
-            margin: 1rem 0;
-            font-size: 14px;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: Inter, Arial, sans-serif;
         }
 
-        /* =========================================
-        TYPING BOX
-        ========================================= */
-        .message-input-area {
-            display: flex;
-            gap: 8px;
-            margin-top: 1rem;
-            align-items: flex-end;
+        a {
+            color: inherit;
+            text-decoration: none;
         }
-        #message-input {
-            flex: 1;
-            resize: vertical;
-            min-height: 42px;
-            max-height: 120px;
-            padding: 10px 12px;
-            border: 1px solid #d3d1c7;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 14px;
-            outline: none;
-        }
-        #message-input:focus {
-            border-color: #185fa5;
-            box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.08);
-        }
-        .send-btn {
-            padding: 10px 16px;
-            border: 1px solid #185fa5;
-            border-radius: 8px;
-            background: #185fa5;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            min-height: 42px;
-        }
-        .send-btn:hover { background: #0c447c; }
-        .send-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        /* =========================================
-        CREATE TICKET MODAL
-        ========================================= */
-        .modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.35);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-            z-index: 100;
+        .nav, .wrap {
+            width: min(1160px, calc(100% - 40px));
+            margin: auto;
         }
-        .modal.hidden { display: none !important; }
-        .modal-content {
-            width: 100%;
-            max-width: 440px;
-            background: #ffffff;
-            border: 1px solid #e0ded6;
-            border-radius: 12px;
-            padding: 1.25rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-        }
-        .modal-header {
+
+        .nav {
+            height: 82px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
         }
-        .modal-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
-        .modal-description { font-size: 13px; color: #6b6a63; margin: 8px 0 1rem; }
-        .close-btn {
-            width: 30px; height: 30px; border: none; border-radius: 6px;
-            background: transparent; font-size: 24px; color: #6b6a63; cursor: pointer;
-        }
-        .close-btn:hover { background: #f5f4ef; }
-        .modal-content label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-        #ticket-issue {
-            width: 100%; resize: vertical; padding: 10px 12px;
-            border: 1px solid #d3d1c7; border-radius: 8px;
-            font-family: inherit; font-size: 14px; outline: none;
-        }
-        #ticket-issue:focus {
-            border-color: #185fa5;
-            box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.08);
-        }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1rem; }
-        .secondary-btn, .primary-btn {
-            padding: 9px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
-        }
-        .secondary-btn { background: #ffffff; border: 1px solid #d3d1c7; color: #1a1a1a; }
-        .secondary-btn:hover { background: #f5f4ef; }
-        .primary-btn { background: #185fa5; border: 1px solid #185fa5; color: #ffffff; }
-        .primary-btn:hover { background: #0c447c; }
-        .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        /* =========================================
-        RESPONSIVE DESIGN
-        ========================================= */
-        @media (max-width: 600px) {
-            body { padding: 0.75rem; }
-            .chat-layout { grid-template-columns: 1fr; }
-            .chat-panel { border-right: none; border-bottom: 1px solid #e0ded6; }
-            .sidebar { padding: 1rem; }
-            .message-input-area { flex-direction: column; align-items: stretch; }
-            .send-btn { width: 100%; }
-            .ticket-row { grid-template-columns: 55px 1fr 85px; }
-            .ticket-row span:nth-child(4), .ticket-row span:nth-child(5) { display: none; }
-            .modal-content { padding: 1rem; }
+        .brand {
+            font-weight: 850;
+            font-size: 21px;
+            letter-spacing: -1px;
+            display: flex;
+            gap: 9px;
+            align-items: center;
+        }
+
+        .mark {
+            background: var(--ink);
+            color: var(--lime);
+            width: 33px;
+            height: 33px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+        }
+
+        .links {
+            display: flex;
+            gap: 30px;
+            color: var(--sub);
+            font-size: 14px;
+        }
+
+        .nav-right {
+            display: flex;
+            gap: 19px;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            background: var(--ink);
+            color: white;
+            padding: 14px 21px;
+            border-radius: 99px;
+            font-size: 14px;
+            font-weight: 750;
+            transition: .2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            background: #315642;
+        }
+
+        .btn.white {
+            background: #fff;
+            color: var(--ink);
+        }
+
+        .hero {
+            overflow: hidden;
+            position: relative;
+            background: linear-gradient(115deg, #eaffdc, #c9f2bd);
+            min-height: 620px;
+            padding: 62px 0 0;
+        }
+
+        .hero:after {
+            content: "";
+            position: absolute;
+            width: 780px;
+            height: 780px;
+            border-radius: 50%;
+            background: #fff5;
+            right: -290px;
+            top: -370px;
+        }
+
+        .hero .wrap {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 1.04fr .96fr;
+            gap: 30px;
+        }
+
+        .badge {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            border: 1px solid #37734b25;
+            background: #ffffff70;
+            color: #37734b;
+            padding: 7px 11px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #50b66b;
+            box-shadow: 0 0 0 4px #50b66b25;
+        }
+
+        h1 {
+            font-size: clamp(48px, 6vw, 76px);
+            line-height: .97;
+            letter-spacing: -.075em;
+            margin: 22px 0 18px;
+            max-width: 660px;
+        }
+
+        h1 em {
+            font-family: Georgia, serif;
+            font-weight: 500;
+        }
+
+        .lead {
+            font-size: 18px;
+            line-height: 1.55;
+            color: #4c6254;
+            max-width: 510px;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .micro {
+            font-size: 12px;
+            color: #5f7566;
+            margin-top: 19px;
+        }
+
+        .trust {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            color: #597261;
+            font-size: 13px;
+            margin-top: 52px;
+        }
+
+        .faces {
+            display: flex;
+        }
+
+        .faces i {
+            font-style: normal;
+            color: white;
+            font-size: 9px;
+            font-weight: 800;
+            display: grid;
+            place-items: center;
+            width: 29px;
+            height: 29px;
+            border: 2px solid #d9f7cc;
+            border-radius: 50%;
+            margin-left: -7px;
+            background: #e68759;
+        }
+
+        .faces i:first-child {
+            margin: 0;
+            background: #6470bc;
+        }
+
+        .faces i:nth-child(3) {
+            background: #37947b;
+        }
+
+        .faces i:nth-child(4) {
+            background: #ab755c;
+        }
+
+        .art {
+            min-height: 510px;
+            position: relative;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+        }
+
+        .ring {
+            position: absolute;
+            border: 1px solid #3572422e;
+            border-radius: 50%;
+            bottom: 32px;
+            width: 440px;
+            height: 440px;
+        }
+
+        .ring.small {
+            width: 345px;
+            height: 345px;
+            bottom: 80px;
+            border-style: dashed;
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            animation: float 5s ease-in-out infinite;
+        }
+
+        .bubble.a {
+            width: 74px;
+            height: 74px;
+            background: #a9ed78;
+            right: 25px;
+            top: 49px;
+        }
+
+        .bubble.b {
+            width: 30px;
+            height: 30px;
+            background: #fff19c;
+            left: 25px;
+            top: 145px;
+            animation-delay: -2s;
+        }
+
+        .card {
+            z-index: 1;
+            width: min(385px, 100%);
+            margin-bottom: 68px;
+            background: #fffffff0;
+            border: 1px solid #fff;
+            border-radius: 23px;
+            padding: 21px;
+            box-shadow: 0 25px 55px #28593a25;
+            animation: rise .8s ease-out;
+        }
+
+        .card-head, .card-foot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .person {
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .person b {
+            background: #e6bea0;
+            color: #6c452a;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+        }
+
+        .active {
+            color: #4b9958;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .active:before {
+            content: "";
+            display: inline-block;
+            background: #55b969;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        .say {
+            margin-top: 20px;
+            background: #fff;
+            padding: 14px;
+            border-radius: 15px 15px 15px 4px;
+            box-shadow: 0 3px 12px #1831260a;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .say strong {
+            color: #317a4a;
+        }
+
+        .wave {
+            height: 67px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .wave i {
+            display: block;
+            width: 4px;
+            height: 30px;
+            background: #55b969;
+            border-radius: 4px;
+            animation: wave .7s alternate infinite;
+        }
+
+        .wave i:nth-child(2n) {
+            height: 50px;
+            animation-delay: .2s;
+        }
+
+        .wave i:nth-child(3n) {
+            height: 18px;
+            animation-delay: .1s;
+        }
+
+        .card-foot {
+            font-size: 11px;
+            color: #65756a;
+        }
+
+        .stats {
+            width: min(1030px, calc(100% - 40px));
+            position: relative;
+            z-index: 3;
+            margin: -38px auto 0;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            background: #fffefa;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 17px 38px #18312610;
+        }
+
+        .stat {
+            padding: 23px 30px;
+            border-right: 1px solid var(--line);
+        }
+
+        .stat:last-child {
+            border: 0;
+        }
+
+        .stat b {
+            font-size: 25px;
+            letter-spacing: -1px;
+        }
+
+        .stat span {
+            display: block;
+            color: var(--sub);
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .section {
+            padding: 118px 0;
+        }
+
+        .section .wrap {
+            max-width: 1160px;
+        }
+
+        .kicker {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: #47874f;
+            font-weight: 850;
+        }
+
+        .section h2 {
+            font-size: clamp(36px, 4vw, 52px);
+            line-height: 1.05;
+            letter-spacing: -.06em;
+            max-width: 640px;
+            margin: 13px 0;
+        }
+
+        .intro {
+            color: var(--sub);
+            line-height: 1.6;
+            max-width: 590px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 17px;
+            margin-top: 43px;
+        }
+
+        .feature {
+            min-height: 245px;
+            background: #fbfcf8;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 25px;
+            transition: .25s;
+        }
+
+        .feature:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 16px 28px #18312612;
+        }
+
+        .icon {
+            display: grid;
+            place-items: center;
+            width: 45px;
+            height: 45px;
+            background: var(--mint);
+            color: #347543;
+            border-radius: 13px;
+            font-size: 21px;
+        }
+
+        .feature h3 {
+            margin: 47px 0 8px;
+            font-size: 18px;
+            letter-spacing: -.4px;
+        }
+
+        .feature p {
+            font-size: 14px;
+            color: var(--sub);
+            line-height: 1.55;
+            margin: 0;
+        }
+
+        .about {
+            background: #1c3327;
+            color: #f2f8f0;
+        }
+
+        .about .wrap {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 100px;
+            padding: 100px 0;
+        }
+
+        .about .kicker {
+            color: var(--lime);
+        }
+
+        .about h2 {
+            font-size: clamp(37px, 4vw, 53px);
+            line-height: 1.05;
+            letter-spacing: -.06em;
+            margin: 14px 0;
+        }
+
+        .about p {
+            color: #c4d0c7;
+            line-height: 1.65;
+            max-width: 480px;
+        }
+
+        .principles {
+            align-self: center;
+        }
+
+        .principle {
+            padding: 21px 0;
+            border-bottom: 1px solid #ffffff23;
+        }
+
+        .principle:first-child {
+            border-top: 1px solid #ffffff23;
+        }
+
+        .principle b {
+            font-size: 16px;
+        }
+
+        .principle span {
+            display: block;
+            color: #bdcbbf;
+            font-size: 13px;
+            margin-top: 7px;
+        }
+
+        footer {
+            width: min(1160px, calc(100% - 40px));
+            margin: auto;
+            padding: 30px 0;
+            color: #66766b;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        @keyframes float {
+            50% {
+                transform: translateY(-14px);
+            }
+        }
+
+        @keyframes rise {
+            from {
+                opacity: 0;
+                transform: translateY(25px);
+            }
+        }
+
+        @keyframes wave {
+            to {
+                transform: scaleY(.35);
+                opacity: .45;
+            }
+        }
+
+        @media(max-width:760px) {
+            .links, .nav-right > a:first-child {
+                display: none;
+            }
+
+            .hero {
+                padding-top: 38px;
+            }
+
+            .hero .wrap, .about .wrap {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .art {
+                min-height: 370px;
+            }
+
+            .card {
+                margin-bottom: 32px;
+            }
+
+            .ring {
+                width: 350px;
+                height: 350px;
+            }
+
+            .ring.small {
+                width: 275px;
+                height: 275px;
+            }
+
+            .trust {
+                margin-top: 35px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+                margin-top: 0;
+                border-radius: 0;
+            }
+
+            .stat {
+                border-right: 0;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .section {
+                padding: 75px 0;
+            }
+
+            .about .wrap {
+                padding: 75px 0;
+            }
+
+            footer {
+                flex-direction: column;
+                gap: 13px;
+            }
+        }
+
+        /* Dark mode */
+
+        :root[data-theme="dark"] {
+            --ink: #edf6e8;
+            --sub: #b5c9b8;
+            --paper: #102019;
+            --lime: #c8f58f;
+            --mint: #254831;
+            --line: #385643;
+        }
+
+        :root[data-theme="dark"] body {
+            background: var(--paper);
+        }
+
+        :root[data-theme="dark"] .hero {
+            background: linear-gradient(115deg, #183b26, #245c38);
+        }
+
+        :root[data-theme="dark"] .hero:after {
+            background: #ffffff0c;
+        }
+
+        :root[data-theme="dark"] .badge {
+            border-color: #b9f58a36;
+            background: #183d2788;
+            color: var(--lime);
+        }
+
+        :root[data-theme="dark"] .lead,
+        :root[data-theme="dark"] .micro,
+        :root[data-theme="dark"] .trust,
+        :root[data-theme="dark"] .intro,
+        :root[data-theme="dark"] .feature p {
+            color: var(--sub);
+        }
+
+        :root[data-theme="dark"] .card,
+        :root[data-theme="dark"] .stats,
+        :root[data-theme="dark"] .feature {
+            background: #193025;
+            border-color: var(--line);
+            box-shadow: 0 18px 38px #06120b48;
+        }
+
+        :root[data-theme="dark"] .say {
+            background: #213c2b;
+            color: var(--ink);
+            box-shadow: none;
+        }
+
+        :root[data-theme="dark"] .btn.white {
+            background: #e9f6e7;
+            color: #183126;
+        }
+
+        :root[data-theme="dark"] .about {
+            background: #0a1610;
+        }
+
+        :root[data-theme="dark"] footer {
+            color: var(--sub);
+        }
+
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            background: #fff;
+            color: var(--ink);
+            display: grid;
+            place-items: center;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            transition: transform .2s, background .2s;
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-2px);
+            background: var(--mint);
+        }
+
+        :root[data-theme="dark"] .theme-toggle {
+            background: #1b3426;
+            border-color: #4f7058;
+            color: var(--lime);
+        }
+
+        /* Appearance settings */
+
+        .brand-tools {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .top-controls {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .top-controls .theme-toggle,
+        .settings-toggle {
+            width: 36px;
+            height: 36px;
+        }
+
+        .settings-toggle {
+            padding: 0;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            background: #fff;
+            color: var(--ink);
+            display: grid;
+            place-items: center;
+            font-size: 17px;
+            line-height: 1;
+            cursor: pointer;
+            transition: transform .2s, background .2s;
+        }
+
+        .settings-toggle:hover {
+            transform: translateY(-2px);
+            background: var(--mint);
+        }
+
+        .settings-panel {
+            position: absolute;
+            top: 48px;
+            left: 0;
+            width: 248px;
+            padding: 16px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: 0 18px 38px #18312622;
+            z-index: 10;
+            display: none;
+        }
+
+        .settings-panel.open {
+            display: block;
+            animation: settings-in .18s ease-out;
+        }
+
+        .settings-title {
+            margin: 0 0 4px;
+            font-size: 14px;
+        }
+
+        .settings-copy {
+            margin: 0 0 13px;
+            color: var(--sub);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .theme-choices {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .theme-choice {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--ink);
+            padding: 9px 8px;
+            font-size: 12px;
+            font-weight: 750;
+            cursor: pointer;
+        }
+
+        .theme-choice.active {
+            background: var(--mint);
+            border-color: #79a97f;
+        }
+
+        :root[data-theme="dark"] .settings-toggle,
+        :root[data-theme="dark"] .settings-panel,
+        :root[data-theme="dark"] .theme-choice {
+            background: #1b3426;
+            border-color: #4f7058;
+            color: var(--ink);
+        }
+
+        :root[data-theme="dark"] .settings-toggle {
+            color: var(--lime);
+        }
+
+        :root[data-theme="dark"] .theme-choice.active {
+            background: #315c3e;
+            border-color: var(--lime);
+        }
+
+        @keyframes settings-in {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:760px) {
+            .brand-tools {
+                gap: 8px;
+            }
+
+            .top-controls {
+                gap: 5px;
+            }
+
+            .settings-panel {
+                left: -4px;
+            }
+
+            .nav-right {
+                gap: 10px;
+            }
+
+            .nav-right .btn {
+                padding: 11px 14px;
+            }
         }
     </style>
 </head>
+
 <body>
-    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; max-width: 1200px; margin: 0 auto 1rem auto;">
-        <h1 style="margin: 0; font-size: 20px;">Voice IT Helpdesk</h1>
-        <div style="display: flex; align-items: center; gap: 1rem; position: relative;">
-            <span style="font-size: 14px; color: #16a34a;">● Session active</span>
-            <button id="profile-btn" style="width: 32px; height: 32px; border-radius: 50%; background: #185fa5; color: white; border: none; cursor: pointer; font-weight: 600;">AR</button>
-            <div id="profile-menu" class="hidden" style="position: absolute; top: 40px; right: 0; background: white; border: 1px solid #e0ded6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 0.5rem; min-width: 120px; z-index: 50;">
-                <button id="settings-btn" style="display: block; width: 100%; text-align: left; padding: 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px;">Settings</button>
-                <button id="logout-btn" style="display: block; width: 100%; text-align: left; padding: 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; color: #dc2626;">Log out</button>
-            </div>
-        </div>
-    </header>
 
-    <main class="chat-layout">
-        <aside class="sidebar">
-            <button id="tickets-btn" class="primary-btn" style="width: 100%; margin-bottom: 1rem;">My tickets</button>
-            <div id="sidebar-tickets">
-                <!-- Sidebar tickets rendered here -->
-            </div>
-        </aside>
+    <!-- Theme initialization -->
+    <script>
+        (() => {
+            const saved = localStorage.getItem("voice-theme");
 
-        <section id="chat-view" class="chat-panel">
-            <div id="message-list" class="message-list"></div>
-            <div class="message-input-area">
-                <textarea id="message-input" placeholder="Listening..."></textarea>
-                <button id="start-btn" class="secondary-btn">Start conversation</button>
-                <button id="send-btn" class="send-btn">Send</button>
-            </div>
-        </section>
+            const theme = saved ||
+                (matchMedia("(prefers-color-scheme: dark)").matches
+                    ? "dark"
+                    : "light");
 
-        <section id="dashboard-view" class="chat-panel hidden">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <button id="back-btn" class="secondary-btn">← Back</button>
-                <h2 style="margin: 0; font-size: 18px;">Tickets dashboard</h2>
-                <button id="create-btn" class="primary-btn">Create ticket</button>
-            </div>
-            
-            <div class="stats">
-                <span>Open: <strong id="stat-open">0</strong></span>
-                <span>In progress: <strong id="stat-progress">0</strong></span>
-                <span>Resolved: <strong id="stat-resolved">0</strong></span>
-            </div>
+            document.documentElement.dataset.theme = theme;
 
-            <div style="font-weight: 600; font-size: 13px; color: #6b6a63; padding: 0.5rem 0; border-bottom: 1px solid #e0ded6; display: grid; grid-template-columns: 60px 1fr 100px 100px 80px; gap: 0.5rem;">
-                <span>ID</span><span>Issue</span><span>Status</span><span>Opened</span><span></span>
-            </div>
-            <div id="ticket-rows">
-                <!-- Dashboard tickets rendered here -->
-            </div>
-        </section>
-    </main>
+            window.toggleTheme = () => {
+                const next =
+                    document.documentElement.dataset.theme === "dark"
+                        ? "light"
+                        : "dark";
 
-    <!-- Modal -->
-    <div id="ticket-modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Create a ticket</h2>
-                <button id="close-modal-btn" class="close-btn">×</button>
-            </div>
-            <p class="modal-description">Describe the IT issue you are experiencing.</p>
-            <label for="ticket-issue">Issue description</label>
-            <textarea id="ticket-issue" rows="4"></textarea>
-            <div class="modal-actions">
-                <button id="cancel-ticket-btn" class="secondary-btn">Cancel</button>
-                <button id="submit-ticket-btn" class="primary-btn">Create ticket</button>
-            </div>
-        </div>
-    </div>
+                document.documentElement.dataset.theme = next;
+                localStorage.setItem("voice-theme", next);
+
+                const icon = document.getElementById("theme-icon");
+                const button = document.getElementById("theme-toggle");
+
+                if (icon) {
+                    icon.textContent = String.fromCharCode(
+                        next === "dark" ? 9728 : 9790
+                    );
+                }
+
+                if (button) {
+                    button.setAttribute(
+                        "aria-label",
+                        `Switch to ${next === "dark" ? "light" : "dark"} mode`
+                    );
+
+                    button.title = button.getAttribute("aria-label");
+                }
+            };
+        })();
+    </script>
 
     <script>
-        // =========================================
-        // API CONFIGURATION
-        // =========================================
-        const API_BASE = "/api"; // Changed to relative path for seamless same-origin serving
-        let sessionId = null;
-        
-        // =========================================
-        // DOM ELEMENTS
-        // =========================================
-        const profileBtn = document.getElementById("profile-btn");
-        const profileMenu = document.getElementById("profile-menu");
-        const logoutBtn = document.getElementById("logout-btn");
-        const settingsBtn = document.getElementById("settings-btn");
-        const chatView = document.getElementById("chat-view");
-        const dashboardView = document.getElementById("dashboard-view");
-        const ticketsBtn = document.getElementById("tickets-btn");
-        const backBtn = document.getElementById("back-btn");
-        const createBtn = document.getElementById("create-btn");
-        const startBtn = document.getElementById("start-btn");
-        const sendBtn = document.getElementById("send-btn");
-        const messageList = document.getElementById("message-list");
-        const messageInput = document.getElementById("message-input");
-        const sidebarTickets = document.getElementById("sidebar-tickets");
-        const ticketRows = document.getElementById("ticket-rows");
-        const statOpen = document.getElementById("stat-open");
-        const statProgress = document.getElementById("stat-progress");
-        const statResolved = document.getElementById("stat-resolved");
-        const ticketModal = document.getElementById("ticket-modal");
-        const closeModalBtn = document.getElementById("close-modal-btn");
-        const cancelTicketBtn = document.getElementById("cancel-ticket-btn");
-        const submitTicketBtn = document.getElementById("submit-ticket-btn");
-        const ticketIssue = document.getElementById("ticket-issue");
+        document.addEventListener("DOMContentLoaded", () => {
+            const dark =
+                document.documentElement.dataset.theme === "dark";
 
-        // =========================================
-        // PROFILE DROPDOWN
-        // =========================================
-        profileBtn.addEventListener("click", () => {
-            profileMenu.classList.toggle("hidden");
-        });
-        document.addEventListener("click", (e) => {
-            if (!profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
-                profileMenu.classList.add("hidden");
+            const icon = document.getElementById("theme-icon");
+            const button = document.getElementById("theme-toggle");
+
+            if (icon) {
+                icon.textContent = String.fromCharCode(
+                    dark ? 9728 : 9790
+                );
+            }
+
+            if (button) {
+                const label =
+                    `Switch to ${dark ? "light" : "dark"} mode`;
+
+                button.setAttribute("aria-label", label);
+                button.title = label;
             }
         });
-        logoutBtn.addEventListener("click", async () => {
-            try {
-                await fetch(`${API_BASE}/auth/logout`, { method: "POST" });
-                alert("Logged out (mock).");
-            } catch (error) {
-                console.error("Logout error:", error);
-            }
-        });
-        settingsBtn.addEventListener("click", () => {
-            alert("Settings screen not built yet.");
-        });
-
-        // =========================================
-        // VIEW SWITCHING
-        // =========================================
-        ticketsBtn.addEventListener("click", async () => {
-            chatView.classList.add("hidden");
-            dashboardView.classList.remove("hidden");
-            await loadTickets();
-        });
-        backBtn.addEventListener("click", () => {
-            dashboardView.classList.add("hidden");
-            chatView.classList.remove("hidden");
-        });
-
-        // =========================================
-        // CONVERSATION
-        // =========================================
-        startBtn.addEventListener("click", async () => {
-            try {
-                startBtn.disabled = true;
-                const res = await fetch(`${API_BASE}/session/start`, { method: "POST" });
-                if (!res.ok) throw new Error("Failed to start session");
-                const data = await res.json();
-                sessionId = data.session_id;
-                addMessage("user", "My VPN isn't working");
-                await sendMessageToBackend("My VPN isn't working");
-            } catch (error) {
-                console.error("Conversation error:", error);
-                addMessage("agent", "Unable to start conversation.");
-            } finally {
-                startBtn.disabled = false;
-            }
-        });
-
-        sendBtn.addEventListener("click", async () => {
-            const text = messageInput.value.trim();
-            if (!text) return;
-            if (!sessionId) {
-                addMessage("agent", "Please start a conversation first.");
-                return;
-            }
-            messageInput.value = "";
-            addMessage("user", text);
-            await sendMessageToBackend(text);
-        });
-
-        messageInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendBtn.click();
-            }
-        });
-
-        async function sendMessageToBackend(text) {
-            try {
-                sendBtn.disabled = true;
-                const res = await fetch(`${API_BASE}/message`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ session_id: sessionId, text: text })
-                });
-                if (!res.ok) throw new Error("Failed to send message");
-                const data = await res.json();
-                addMessage("agent", data.text);
-            } catch (error) {
-                console.error("Message error:", error);
-                addMessage("agent", "Sorry, I could not process your message.");
-            } finally {
-                sendBtn.disabled = false;
-            }
-        }
-
-        function addMessage(role, text) {
-            const el = document.createElement("div");
-            el.className = `message ${role}`;
-            const roleLabel = document.createElement("p");
-            roleLabel.className = "role";
-            roleLabel.textContent = role === "user" ? "User" : "Agent";
-            const messageText = document.createElement("p");
-            messageText.textContent = text;
-            el.appendChild(roleLabel);
-            el.appendChild(messageText);
-            messageList.appendChild(el);
-            messageList.scrollTop = messageList.scrollHeight;
-        }
-
-        // =========================================
-        // TICKET MODAL
-        // =========================================
-        createBtn.addEventListener("click", () => {
-            ticketIssue.value = "";
-            ticketModal.classList.remove("hidden");
-            ticketIssue.focus();
-        });
-
-        function closeTicketModal() {
-            ticketModal.classList.add("hidden");
-            ticketIssue.value = "";
-        }
-        closeModalBtn.addEventListener("click", closeTicketModal);
-        cancelTicketBtn.addEventListener("click", closeTicketModal);
-        
-        ticketModal.addEventListener("click", (e) => {
-            if (e.target === ticketModal) closeTicketModal();
-        });
-        
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && !ticketModal.classList.contains("hidden")) {
-                closeTicketModal();
-            }
-        });
-
-        // =========================================
-        // CREATE TICKET
-        // =========================================
-        submitTicketBtn.addEventListener("click", async () => {
-            const issue = ticketIssue.value.trim();
-            if (!issue) {
-                alert("Please describe the issue.");
-                ticketIssue.focus();
-                return;
-            }
-            try {
-                submitTicketBtn.disabled = true;
-                const res = await fetch(`${API_BASE}/tickets`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ issue: issue })
-                });
-                if (!res.ok) throw new Error("Failed to create ticket");
-                closeTicketModal();
-                await loadTickets();
-                alert("Ticket created successfully.");
-            } catch (error) {
-                console.error("Ticket creation error:", error);
-                alert("Unable to create ticket.");
-            } finally {
-                submitTicketBtn.disabled = false;
-            }
-        });
-
-        // =========================================
-        // LOAD TICKETS
-        // =========================================
-        async function loadTickets() {
-            try {
-                const res = await fetch(`${API_BASE}/tickets`);
-                if (!res.ok) throw new Error("Failed to load tickets");
-                const tickets = await res.json();
-                renderSidebarTickets(tickets);
-                renderDashboardTickets(tickets);
-            } catch (error) {
-                console.error("Loading tickets error:", error);
-            }
-        }
-
-        function renderSidebarTickets(tickets) {
-            sidebarTickets.innerHTML = "";
-            tickets.slice(0, 3).forEach((t) => {
-                const el = document.createElement("div");
-                el.className = "ticket-card";
-                const title = document.createElement("div");
-                title.textContent = `#${t.id} · ${t.issue}`;
-                const status = document.createElement("div");
-                status.className = "status";
-                status.textContent = `Status: ${String(t.status).replaceAll("_", " ")}`;
-                el.appendChild(title);
-                el.appendChild(status);
-                sidebarTickets.appendChild(el);
-            });
-        }
-
-        function renderDashboardTickets(tickets) {
-            ticketRows.innerHTML = "";
-            let open = 0, inProgress = 0, resolved = 0;
-            tickets.forEach((t) => {
-                if (t.status === "open") open++;
-                if (t.status === "in_progress") inProgress++;
-                if (t.status === "resolved") resolved++;
-                
-                const row = document.createElement("div");
-                row.className = "ticket-row";
-                
-                const id = document.createElement("span"); id.textContent = `#${t.id}`;
-                const issue = document.createElement("span"); issue.textContent = t.issue;
-                const status = document.createElement("span");
-                status.className = `status-${t.status}`;
-                status.textContent = String(t.status).replaceAll("_", " ");
-                const opened = document.createElement("span"); opened.textContent = t.opened;
-                
-                const deleteBtn = document.createElement("button");
-                deleteBtn.className = "delete-btn";
-                deleteBtn.textContent = "Delete";
-                deleteBtn.setAttribute("aria-label", `Delete ticket ${t.id}`);
-                deleteBtn.addEventListener("click", async () => { await deleteTicket(t.id); });
-
-                row.appendChild(id); row.appendChild(issue); row.appendChild(status);
-                row.appendChild(opened); row.appendChild(deleteBtn);
-                ticketRows.appendChild(row);
-            });
-            statOpen.textContent = open;
-            statProgress.textContent = inProgress;
-            statResolved.textContent = resolved;
-        }
-
-        async function deleteTicket(ticketId) {
-            try {
-                const res = await fetch(`${API_BASE}/tickets/${ticketId}`, { method: "DELETE" });
-                if (!res.ok) throw new Error("Failed to delete ticket");
-                await loadTickets();
-            } catch (error) {
-                console.error("Delete ticket error:", error);
-                alert("Unable to delete ticket.");
-            }
-        }
-
-        // =========================================
-        // INITIAL LOAD
-        // =========================================
-        loadTickets();
     </script>
+
+    <!-- Navigation -->
+    <nav class="nav">
+
+        <div class="brand-tools">
+
+            <a class="brand" href="index.html">
+                <span class="mark">V</span>
+                voice
+            </a>
+
+            <div class="top-controls">
+
+                <button
+                    id="theme-toggle"
+                    class="theme-toggle"
+                    type="button"
+                    onclick="toggleTheme()"
+                    aria-label="Switch color mode"
+                    title="Switch color mode"
+                >
+                    <span id="theme-icon" aria-hidden="true">
+                        &#9790;
+                    </span>
+                </button>
+
+                <button
+                    id="settings-toggle"
+                    class="settings-toggle"
+                    type="button"
+                    onclick="toggleSettings()"
+                    aria-label="Open appearance settings"
+                    aria-controls="settings-panel"
+                    aria-expanded="false"
+                    title="Appearance settings"
+                >
+                    <span aria-hidden="true">&#9881;</span>
+                </button>
+
+            </div>
+
+            <section
+                id="settings-panel"
+                class="settings-panel"
+                aria-label="Appearance settings"
+            >
+                <h2 class="settings-title">Appearance</h2>
+
+                <p class="settings-copy">
+                    Choose the view that feels best for you.
+                </p>
+
+                <div class="theme-choices">
+
+                    <button
+                        class="theme-choice"
+                        type="button"
+                        data-theme-choice="light"
+                        onclick="setTheme('light')"
+                    >
+                        Light
+                    </button>
+
+                    <button
+                        class="theme-choice"
+                        type="button"
+                        data-theme-choice="dark"
+                        onclick="setTheme('dark')"
+                    >
+                        Dark
+                    </button>
+
+                </div>
+            </section>
+
+        </div>
+
+        <div class="links">
+            <a href="#how">How it works</a>
+            <a href="#about">About us</a>
+        </div>
+
+        <div class="nav-right">
+
+            <!-- UPDATED: Sign in goes to Login.html -->
+            <a href="Login.html">Sign in</a>
+
+            <!-- UPDATED: Get support goes to Login.html -->
+            <a class="btn" href="Login.html">
+                Get support →
+            </a>
+
+        </div>
+
+    </nav>
+
+    <!-- Theme and settings controls -->
+    <script>
+        (() => {
+            const syncThemeControls = () => {
+                const theme =
+                    document.documentElement.dataset.theme || "light";
+
+                const icon = document.getElementById("theme-icon");
+                const button = document.getElementById("theme-toggle");
+
+                if (icon) {
+                    icon.textContent = String.fromCharCode(
+                        theme === "dark" ? 9728 : 9790
+                    );
+                }
+
+                if (button) {
+                    const label =
+                        `Switch to ${theme === "dark" ? "light" : "dark"} mode`;
+
+                    button.setAttribute("aria-label", label);
+                    button.title = label;
+                }
+
+                document
+                    .querySelectorAll("[data-theme-choice]")
+                    .forEach((choice) => {
+                        const active =
+                            choice.dataset.themeChoice === theme;
+
+                        choice.classList.toggle("active", active);
+                        choice.setAttribute("aria-pressed", active);
+                    });
+            };
+
+            window.setTheme = (theme) => {
+                document.documentElement.dataset.theme = theme;
+                localStorage.setItem("voice-theme", theme);
+                syncThemeControls();
+            };
+
+            window.toggleTheme = () => {
+                setTheme(
+                    document.documentElement.dataset.theme === "dark"
+                        ? "light"
+                        : "dark"
+                );
+            };
+
+            window.toggleSettings = () => {
+                const panel =
+                    document.getElementById("settings-panel");
+
+                const button =
+                    document.getElementById("settings-toggle");
+
+                const open = !panel.classList.contains("open");
+
+                panel.classList.toggle("open", open);
+                button.setAttribute("aria-expanded", open);
+            };
+
+            document.addEventListener("click", (event) => {
+                const tools =
+                    document.querySelector(".brand-tools");
+
+                const panel =
+                    document.getElementById("settings-panel");
+
+                if (tools && panel && !tools.contains(event.target)) {
+                    panel.classList.remove("open");
+
+                    document
+                        .getElementById("settings-toggle")
+                        .setAttribute("aria-expanded", "false");
+                }
+            });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    document
+                        .getElementById("settings-panel")
+                        .classList.remove("open");
+
+                    document
+                        .getElementById("settings-toggle")
+                        .setAttribute("aria-expanded", "false");
+                }
+            });
+
+            syncThemeControls();
+        })();
+    </script>
+
+    <!-- Main content -->
+    <main>
+
+        <!-- Hero section -->
+        <section class="hero">
+
+            <div class="wrap">
+
+                <div>
+
+                    <span class="badge">
+                        <i class="dot"></i>
+                        Always-on IT support
+                    </span>
+
+                    <h1>
+                        IT help, simply <em>said.</em>
+                    </h1>
+
+                    <p class="lead">
+                        Voice is the friendly, voice-first helpdesk
+                        that turns everyday tech problems into quick,
+                        clear resolutions.
+                    </p>
+
+                    <div class="actions">
+
+                        <!-- UPDATED: Start a conversation goes to Login.html -->
+                        <a class="btn" href="Login.html">
+                            Start a conversation →
+                        </a>
+
+                        <a class="btn white" href="#how">
+                            See how it works
+                        </a>
+
+                    </div>
+
+                    <p class="micro">
+                        No waiting rooms. No complicated forms.
+                        Just say what you need.
+                    </p>
+
+                    <div class="trust">
+
+                        <span class="faces">
+                            <i>MA</i>
+                            <i>JS</i>
+                            <i>KT</i>
+                            <i>AP</i>
+                        </span>
+
+                        Trusted by teams who like their IT uncomplicated.
+
+                    </div>
+
+                </div>
+
+                <!-- Illustration card -->
+                <div class="art">
+
+                    <i class="ring"></i>
+                    <i class="ring small"></i>
+                    <i class="bubble a"></i>
+                    <i class="bubble b"></i>
+
+                    <div class="card">
+
+                        <div class="card-head">
+
+                            <span class="person">
+                                <b>AR</b>
+                                Alex Reed
+                            </span>
+
+                            <span class="active">
+                                Voice is listening
+                            </span>
+
+                        </div>
+
+                        <div class="say">
+                            “My VPN won’t connect from home.”
+                            <br>
+                            <strong>
+                                Let’s get you back online.
+                            </strong>
+                        </div>
+
+                        <div class="wave">
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                        </div>
+
+                        <div class="card-foot">
+                            <span>● Conversation active</span>
+                            <span>00:12</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- Statistics -->
+        <div class="stats">
+
+            <div class="stat">
+                <b>&lt; 2 min</b>
+                <span>average first response</span>
+            </div>
+
+            <div class="stat">
+                <b>24 / 7</b>
+                <span>help when your work happens</span>
+            </div>
+
+            <div class="stat">
+                <b>1 clear place</b>
+                <span>for every request and update</span>
+            </div>
+
+        </div>
+
+        <!-- How it works -->
+        <section id="how" class="section">
+
+            <div class="wrap">
+
+                <span class="kicker">
+                    Support that feels human
+                </span>
+
+                <h2>
+                    Less ticket chasing. More getting back to work.
+                </h2>
+
+                <p class="intro">
+                    Whether it’s a locked account or a stubborn VPN,
+                    Voice makes it effortless to explain the problem
+                    and follow its resolution.
+                </p>
+
+                <div class="features">
+
+                    <article class="feature">
+
+                        <div class="icon">⌁</div>
+
+                        <h3>Speak naturally</h3>
+
+                        <p>
+                            Start with your own words. Voice understands
+                            the issue, asks the right questions, and
+                            gets the context in seconds.
+                        </p>
+
+                    </article>
+
+                    <article class="feature">
+
+                        <div class="icon">✓</div>
+
+                        <h3>Get clear next steps</h3>
+
+                        <p>
+                            Helpful guidance without the jargon,
+                            so you know exactly what’s happening
+                            and what to do next.
+                        </p>
+
+                    </article>
+
+                    <article class="feature">
+
+                        <div class="icon">↗</div>
+
+                        <h3>Stay in the loop</h3>
+
+                        <p>
+                            Your support history and ticket updates
+                            live in one calm, simple portal—no inbox
+                            hunting required.
+                        </p>
+
+                    </article>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- About section -->
+        <section id="about" class="about">
+
+            <div class="wrap">
+
+                <div>
+
+                    <span class="kicker">
+                        About Voice
+                    </span>
+
+                    <h2>
+                        Technology should never slow people down.
+                    </h2>
+
+                    <p>
+                        We built Voice to make IT support feel less
+                        like a system and more like a helpful
+                        conversation. Our team believes the best
+                        support is prompt, plain-spoken, and always
+                        respectful of your time.
+                    </p>
+
+                    <!-- UPDATED: Meet your helpdesk goes to Login.html -->
+                    <a class="btn white" href="Login.html">
+                        Meet your helpdesk →
+                    </a>
+
+                </div>
+
+                <div class="principles">
+
+                    <div class="principle">
+                        <b>Human at heart</b>
+                        <span>
+                            Clear language and thoughtful service,
+                            in every interaction.
+                        </span>
+                    </div>
+
+                    <div class="principle">
+                        <b>Made for momentum</b>
+                        <span>
+                            Fast answers and smooth handoffs
+                            that keep work moving.
+                        </span>
+                    </div>
+
+                    <div class="principle">
+                        <b>Calm by design</b>
+                        <span>
+                            A focused experience for when technology
+                            feels anything but.
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <span>© 2026 Voice IT Helpdesk</span>
+        <span>Here when work gets technical.</span>
+    </footer>
+
 </body>
 </html>

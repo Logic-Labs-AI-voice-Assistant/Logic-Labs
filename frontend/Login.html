@@ -98,7 +98,32 @@
         .ticket-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
         .ticket-modal-actions button { border: 1px solid #d3d9e4; border-radius: 10px; padding: 0.65rem 0.9rem; cursor: pointer; }
         .ticket-modal-actions .submit-ticket { background: #0f4c81; color: #ffffff; border-color: #0f4c81; }
+        /* Voice landing-page visual language for the authentication experience. */
+        :root { --ink: #183126; --sub: #617168; --paper: #f6f6f0; --lime: #b9f58a; --mint: #dcf8d3; --line: #dce5db; --green: #347543; }
+        body { background: var(--paper); color: var(--ink); }
+        .auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 32px 20px; background: linear-gradient(115deg, #eaffdc, #c9f2bd); overflow: hidden; position: relative; }
+        .auth-screen::before, .auth-screen::after { content: ""; position: absolute; border: 1px solid rgba(52, 117, 67, .17); border-radius: 50%; pointer-events: none; }
+        .auth-screen::before { width: 680px; height: 680px; left: -340px; bottom: -405px; }
+        .auth-screen::after { width: 480px; height: 480px; right: -240px; top: -250px; border-style: dashed; }
+        .auth-layout { width: min(100%, 1030px); min-height: 610px; display: grid; grid-template-columns: 1fr 440px; position: relative; z-index: 1; border: 1px solid rgba(24, 49, 38, .15); background: rgba(255,255,255,.28); box-shadow: 0 25px 60px rgba(35, 84, 50, .17); }
+        .auth-aside { padding: 48px; display: flex; flex-direction: column; justify-content: space-between; color: var(--ink); }
+        .back-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 14px; font-weight: 750; text-decoration: none; }
+        .back-link:hover { color: var(--green); }
+        .welcome-copy { max-width: 435px; }
+        .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--green); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+        .eyebrow i { width: 8px; height: 8px; background: #50b66b; border-radius: 50%; box-shadow: 0 0 0 4px rgba(80,182,107,.17); }
+        .welcome-copy h1 { margin: 17px 0 14px; max-width: 400px; font-size: 52px; line-height: .98; letter-spacing: 0; }
+        .welcome-copy h1 em { font-family: Georgia, serif; font-weight: 500; }
+        .welcome-copy p { margin: 0; color: #4c6254; font-size: 16px; line-height: 1.6; }
+        .support-note { display: flex; align-items: center; gap: 12px; color: #4c6254; font-size: 13px; }
+        .support-note span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--lime); font-weight: 800; }
+        .auth-card { width: 100%; padding: 42px 38px; background: rgba(255,255,255,.94); border: 0; border-left: 1px solid rgba(24,49,38,.12); border-radius: 0; box-shadow: none; }
+        .brand-row { gap: 10px; margin-bottom: 29px; }.brand-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--ink); color: var(--lime); }.brand-title { font-size: 18px; font-weight: 850; }.brand-subtitle { color: var(--sub); font-size: 12px; margin-top: 2px; }
+        .auth-tabs { background: #eef4eb; border: 1px solid var(--line); border-radius: 8px; padding: 4px; margin-bottom: 23px; }.auth-tab { color: var(--sub); border-radius: 5px; padding: 10px 12px; font-weight: 750; }.auth-tab.active { color: var(--ink); box-shadow: 0 2px 7px rgba(24,49,38,.11); }
+        .field label { margin-bottom: 7px; color: var(--ink); font-size: 13px; font-weight: 750; }.field input { border-color: #cbd8cc; border-radius: 6px; padding: 12px 13px; color: var(--ink); }.field input:focus { outline: none; border-color: #55a764; box-shadow: 0 0 0 3px rgba(85,167,100,.16); }.toggle-password { right: 9px; color: var(--green); font-size: 12px; font-weight: 800; }.checkbox-row { color: var(--sub); font-size: 13px; }.text-link, .link-button { color: var(--green); font-weight: 750; }
+        .primary-btn { border-color: var(--ink); border-radius: 6px; background: var(--ink); padding: 13px 16px; font-weight: 800; transition: transform .18s, background .18s; }.primary-btn:hover { background: #315642; transform: translateY(-1px); }.secondary-btn { border-color: #cbd8cc; border-radius: 6px; color: var(--ink); padding: 12px 16px; font-weight: 750; }.secondary-btn:hover { background: #f5f9f2; }.divider { margin: 21px 0; color: var(--sub); font-size: 12px; }.divider::before, .divider::after { background: var(--line); }.auth-footer { color: var(--sub); margin: 20px 0 0; font-size: 13px; }
         @media (max-width: 640px) {
+            .auth-screen { padding: 0; display: block; }.auth-layout { min-height: 100vh; display: block; border: 0; }.auth-aside { min-height: 245px; padding: 27px 24px; }.welcome-copy { margin-top: 36px; }.welcome-copy h1 { font-size: 38px; }.welcome-copy p, .support-note { display: none; }.auth-card { padding: 30px 24px 40px; border-left: 0; }
             body { padding: 0; }
             .app-card { border-radius: 0; }
             .chat-layout { grid-template-columns: 1fr; }
@@ -107,11 +132,95 @@
             .ticket-row { grid-template-columns: 1fr; gap: 0.3rem; padding: 0.8rem 0.9rem; }
             .ticket-row.header-row { display: none; }
         }
-    </style>
+        :root[data-theme="dark"] body { background: #102019; color: #edf6e8; }
+        :root[data-theme="dark"] .auth-screen { background: linear-gradient(115deg, #183b26, #245c38); }
+        :root[data-theme="dark"] .auth-layout { background: rgba(12, 30, 19, .58); border-color: rgba(200, 245, 143, .2); box-shadow: 0 25px 60px rgba(0, 0, 0, .3); }
+        :root[data-theme="dark"] .auth-card { background: rgba(18, 38, 26, .97); border-color: rgba(200, 245, 143, .15); }
+        :root[data-theme="dark"] .back-link, :root[data-theme="dark"] .welcome-copy h1, :root[data-theme="dark"] .brand-title, :root[data-theme="dark"] .field label { color: #edf6e8; }
+        :root[data-theme="dark"] .welcome-copy p, :root[data-theme="dark"] .support-note, :root[data-theme="dark"] .brand-subtitle, :root[data-theme="dark"] .checkbox-row, :root[data-theme="dark"] .auth-footer { color: #b5c9b8; }
+        :root[data-theme="dark"] .auth-tabs { background: #183423; border-color: #3d6548; }
+        :root[data-theme="dark"] .auth-tab.active { background: #294d35; color: #edf6e8; }
+        :root[data-theme="dark"] .field input, :root[data-theme="dark"] .secondary-btn { background: #152c1e; border-color: #426a4b; color: #edf6e8; }
+        :root[data-theme="dark"] .secondary-btn:hover { background: #203d2a; }
+        :root[data-theme="dark"] .primary-btn { background: #b9f58a; border-color: #b9f58a; color: #183126; }
+        :root[data-theme="dark"] .app-card, :root[data-theme="dark"] .profile-menu, :root[data-theme="dark"] .ticket-modal-card { background: #152c1e; border-color: #426a4b; color: #edf6e8; }
+        :root[data-theme="dark"] .app-header, :root[data-theme="dark"] .chat-panel, :root[data-theme="dark"] .ticket-row { border-color: #426a4b; }
+        :root[data-theme="dark"] .message.agent, :root[data-theme="dark"] .ticket-card, :root[data-theme="dark"] .controls button, :root[data-theme="dark"] .dashboard-toolbar button { background: #1b3426; border-color: #426a4b; color: #edf6e8; }
+        :root[data-theme="dark"] .message.user, :root[data-theme="dark"] .stat-card, :root[data-theme="dark"] .ticket-row.header-row { background: #294d35; color: #edf6e8; }
+        .auth-aside-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .theme-toggle { width: 40px; height: 40px; border: 1px solid rgba(24,49,38,.18); border-radius: 50%; background: rgba(255,255,255,.7); color: var(--ink); display: grid; place-items: center; font-size: 18px; line-height: 1; cursor: pointer; transition: transform .2s, background .2s; }
+        .theme-toggle:hover { transform: translateY(-2px); background: #fff; }
+        :root[data-theme="dark"] .theme-toggle { background: #1b3426; border-color: #4f7058; color: var(--lime); }
+        .app-card { position: relative; }
+        .app-brand-controls { display: flex; align-items: center; gap: 9px; }
+        .app-header-icon { width: 32px; height: 32px; padding: 0; border: 1px solid #d7e1ec; border-radius: 50%; background: #ffffff; color: #185fa5; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; transition: transform .18s, background .18s; }
+        .app-header-icon:hover { background: #edf3fa; transform: translateY(-1px); }
+        .app-settings-panel { display: none; position: absolute; top: 57px; left: 14px; z-index: 12; width: min(290px, calc(100% - 28px)); padding: 15px; background: #ffffff; border: 1px solid #dfe5ef; border-radius: 8px; box-shadow: 0 16px 35px rgba(14, 23, 38, .18); }
+        .app-settings-panel.open { display: block; animation: panel-in .18s ease-out; }
+        .settings-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+        .settings-header h2 { margin: 0; font-size: 15px; }
+        .settings-close { width: 28px; height: 28px; padding: 0; border: none; background: transparent; color: #5f6b7a; font-size: 20px; line-height: 1; cursor: pointer; }
+        .settings-description { margin: 0 0 14px; color: #5f6b7a; font-size: 12px; line-height: 1.45; }
+        .settings-group { padding-top: 13px; border-top: 1px solid #e0ded6; }
+        .settings-group + .settings-group { margin-top: 13px; }
+        .settings-group-label { display: block; margin-bottom: 8px; color: #42536a; font-size: 12px; font-weight: 700; }
+        .settings-segmented { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        .settings-choice { border: 1px solid #d7e1ec; border-radius: 6px; background: #ffffff; color: #2f3d52; padding: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .settings-choice.active { border-color: #55a764; background: #e7f6e2; color: #1f6433; }
+        :root[data-chat-density="compact"] .chat-panel, :root[data-chat-density="compact"] .sidebar { padding: .7rem; }
+        :root[data-chat-density="compact"] .message-list { gap: 6px; min-height: 92px; }
+        :root[data-chat-density="compact"] .message { padding: 6px 9px; }
+        :root[data-theme="dark"] .app-header-icon, :root[data-theme="dark"] .app-settings-panel, :root[data-theme="dark"] .settings-choice { background: #1b3426; border-color: #426a4b; color: #edf6e8; }
+        :root[data-theme="dark"] .app-header-icon { color: var(--lime); }
+        :root[data-theme="dark"] .settings-description, :root[data-theme="dark"] .settings-group-label, :root[data-theme="dark"] .settings-close { color: #b5c9b8; }
+        :root[data-theme="dark"] .settings-group { border-color: #426a4b; }
+        :root[data-theme="dark"] .settings-choice.active { background: #315c3e; border-color: var(--lime); color: var(--lime); }
+        @keyframes panel-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        </style>
+        <script>
+            (() => {
+                const key = 'voice-theme';
+                const theme = localStorage.getItem(key) || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                const applyTheme = (value) => {
+                    document.documentElement.dataset.theme = value;
+                    document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+                    const icon = button.querySelector('[data-theme-icon]');
+                    if (icon) icon.textContent = String.fromCharCode(value === 'dark' ? 9728 : 9790);
+                    if (button) {
+                        const label = `Switch to ${value === 'dark' ? 'light' : 'dark'} mode`;
+                        button.setAttribute('aria-label', label);
+                        button.title = label;
+                    }
+                    });
+                    document.querySelectorAll('[data-app-theme]').forEach((choice) => {
+                        const active = choice.dataset.appTheme === value;
+                        choice.classList.toggle('active', active);
+                        choice.setAttribute('aria-pressed', active);
+                    });
+                };
+                document.documentElement.dataset.theme = theme;
+                window.setTheme = (value) => { localStorage.setItem(key, value); applyTheme(value); };
+                window.toggleTheme = () => window.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+                document.addEventListener('DOMContentLoaded', () => applyTheme(theme));
+            })();
+        </script>
 </head>
 <body>
     <!-- Auth Screen -->
     <div id="auth-screen" class="auth-screen">
+        <div class="auth-layout">
+        <section class="auth-aside" aria-label="Voice IT helpdesk">
+            <div class="auth-aside-top">
+                <a class="back-link" href="index.html">&larr; Back to Voice</a>
+                <button class="theme-toggle" data-theme-toggle type="button" onclick="toggleTheme()" aria-label="Switch color mode" title="Switch color mode"><span data-theme-icon aria-hidden="true">&#9790;</span></button>
+            </div>
+            <div class="welcome-copy">
+                <span class="eyebrow"><i></i> Always-on IT support</span>
+                <h1>Let's get you <em>back</em> to work.</h1>
+                <p>Sign in to talk through an IT issue, follow requests, and get clear next steps in one place.</p>
+            </div>
+            <div class="support-note"><span>V</span> Calm, clear support when work gets technical.</div>
+        </section>
         <div class="auth-card">
             <div class="brand-row">
                 <div class="brand-icon">V</div>
@@ -165,14 +274,19 @@
                 <button type="button" id="auth-switch" class="link-button">Sign up</button>
             </div>
         </div>
+        </div>
     </div>
 
     <!-- App Shell (Hidden by default) -->
     <div id="app-shell" class="hidden">
         <div class="app-card">
             <div class="app-header">
-                <div class="brand-icon" style="width: 32px; height: 32px; font-size: 14px;">V</div>
-                <div class="app-title">Voice IT helpdesk</div>
+                <div class="app-brand-controls">
+                    <div class="brand-icon" style="width: 32px; height: 32px; font-size: 14px;">V</div>
+                    <div class="app-title">Voice IT helpdesk</div>
+                    <button class="app-header-icon" data-theme-toggle type="button" onclick="toggleTheme()" aria-label="Switch color mode" title="Switch color mode"><span data-theme-icon aria-hidden="true">&#9790;</span></button>
+                    <button id="app-settings-toggle" class="app-header-icon" type="button" aria-label="Open settings" aria-controls="app-settings-panel" aria-expanded="false" title="Settings"><span aria-hidden="true">&#9881;</span></button>
+                </div>
                 <div class="session-status">
                     <span class="status-dot"></span>
                     <span id="session-label">Session active</span>
@@ -185,6 +299,27 @@
                     </div>
                 </div>
             </div>
+            <section id="app-settings-panel" class="app-settings-panel" aria-label="Helpdesk settings">
+                <div class="settings-header">
+                    <h2>Settings</h2>
+                    <button id="close-app-settings" class="settings-close" type="button" aria-label="Close settings">&times;</button>
+                </div>
+                <p class="settings-description">Personalize how your helpdesk workspace looks.</p>
+                <div class="settings-group">
+                    <span class="settings-group-label">Appearance</span>
+                    <div class="settings-segmented">
+                        <button class="settings-choice" type="button" data-app-theme="light">Light</button>
+                        <button class="settings-choice" type="button" data-app-theme="dark">Dark</button>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <span class="settings-group-label">Conversation spacing</span>
+                    <div class="settings-segmented">
+                        <button class="settings-choice" type="button" data-density="comfortable">Comfortable</button>
+                        <button class="settings-choice" type="button" data-density="compact">Compact</button>
+                    </div>
+                </div>
+            </section>
             
             <div id="chat-view" class="chat-layout">
                 <div class="chat-panel">
@@ -277,6 +412,9 @@
         const profileMenu = document.getElementById("profile-menu");
         const logoutBtn = document.getElementById("logout-btn");
         const settingsBtn = document.getElementById("settings-btn");
+        const appSettingsToggle = document.getElementById("app-settings-toggle");
+        const appSettingsPanel = document.getElementById("app-settings-panel");
+        const closeAppSettingsBtn = document.getElementById("close-app-settings");
         const sessionLabel = document.getElementById("session-label");
         const chatView = document.getElementById("chat-view");
         const dashboardView = document.getElementById("dashboard-view");
@@ -360,6 +498,22 @@
             updateProfile();
         }
 
+        function setChatDensity(density) {
+            document.documentElement.dataset.chatDensity = density;
+            localStorage.setItem("voice-chat-density", density);
+            document.querySelectorAll("[data-density]").forEach((choice) => {
+                const active = choice.dataset.density === density;
+                choice.classList.toggle("active", active);
+                choice.setAttribute("aria-pressed", active);
+            });
+        }
+
+        function setAppSettingsOpen(open) {
+            appSettingsPanel.classList.toggle("open", open);
+            appSettingsToggle.setAttribute("aria-expanded", String(open));
+            if (open) profileMenu.classList.remove("open");
+        }
+
         async function apiFetch(path, options = {}) {
             const requestHeaders = { Accept: "application/json", ...(options.headers || {}) };
             if (options.body && !requestHeaders["Content-Type"]) requestHeaders["Content-Type"] = "application/json";
@@ -377,7 +531,7 @@
         async function checkAuthState() {
             try {
                 state.user = await apiFetch("/auth/me");
-                showAppView();
+                window.location.href = "main.html";
             } catch (error) {
                 state.user = null;
                 showAuthView();
@@ -473,7 +627,7 @@
                 if (!email || !password) throw new Error("Email and password are required.");
                 const user = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
                 state.user = user;
-                showAppView();
+                window.location.href = "main.html";
             } catch (error) {
                 setAuthMessage(error.message || "Unable to process your request.");
             }
@@ -507,6 +661,7 @@
         profileBtn.addEventListener("click", () => profileMenu.classList.toggle("open"));
         document.addEventListener("click", (event) => {
             if (!profileBtn.contains(event.target) && !profileMenu.contains(event.target)) profileMenu.classList.remove("open");
+            if (!appSettingsToggle.contains(event.target) && !appSettingsPanel.contains(event.target)) setAppSettingsOpen(false);
         });
         logoutBtn.addEventListener("click", async () => {
             try { 
@@ -516,7 +671,18 @@
             } 
             catch (error) { console.error("Logout failed:", error); showAuthView(); }
         });
-        settingsBtn.addEventListener("click", () => alert("Settings screen not built yet — placeholder for now."));
+        appSettingsToggle.addEventListener("click", () => setAppSettingsOpen(!appSettingsPanel.classList.contains("open")));
+        closeAppSettingsBtn.addEventListener("click", () => setAppSettingsOpen(false));
+        settingsBtn.addEventListener("click", (event) => { event.stopPropagation(); setAppSettingsOpen(true); });
+        document.querySelectorAll("[data-app-theme]").forEach((choice) => {
+            choice.addEventListener("click", () => setTheme(choice.dataset.appTheme));
+        });
+        document.querySelectorAll("[data-density]").forEach((choice) => {
+            choice.addEventListener("click", () => setChatDensity(choice.dataset.density));
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") { setAppSettingsOpen(false); profileMenu.classList.remove("open"); }
+        });
         ticketsBtn.addEventListener("click", async () => { chatView.classList.add("hidden"); dashboardView.classList.remove("hidden"); await loadTickets(); });
         backBtn.addEventListener("click", () => { dashboardView.classList.add("hidden"); chatView.classList.remove("hidden"); });
         startBtn.addEventListener("click", async () => {
@@ -570,6 +736,7 @@
 
         bindAuthControls();
         setAuthMode("login");
+        setChatDensity(localStorage.getItem("voice-chat-density") || "comfortable");
         checkAuthState();
     </script>
 </body>

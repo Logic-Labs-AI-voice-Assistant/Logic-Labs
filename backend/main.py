@@ -447,6 +447,8 @@ def serve_index():
     return HTMLResponse(content="<h1>Voice IT Helpdesk</h1><p>Frontend index.html not found. Go to /login</p><a href='/login'>Login</a>", status_code=200)
 
 @app.get("/login", response_class=HTMLResponse)
+@app.get("/Login.html", response_class=HTMLResponse)
+@app.get("/login.html", response_class=HTMLResponse)
 def serve_login():
     """PUBLIC - Anyone can access login page"""
     for name in ["Login.html", "login.html"]:
