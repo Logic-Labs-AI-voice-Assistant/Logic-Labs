@@ -30,3 +30,5 @@ uvicorn==0.30.6
 uvloop==0.22.1
 watchfiles==1.2.0
 websockets==16.1.1
+azure-ai-projects>=2.7.0
+azure-identity>=1.14.0
