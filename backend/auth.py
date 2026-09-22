@@ -71,7 +71,8 @@ oauth.register(
 # DB HELPERS
 # ============================================================
 def get_db_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DATABASE_PATH)
+    db_path = os.getenv("DATABASE_PATH", os.path.join(BACKEND_DIR, "customer_auth.db"))
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 

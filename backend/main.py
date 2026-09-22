@@ -1,11 +1,11 @@
+import os
 import hashlib
 import hmac
-import os
 import re
 import secrets
 import sqlite3
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -14,74 +14,118 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
 
-# ============================================================
-# IMPORT FROM AUTH.PY
-# Adjust 'backend.auth' to 'auth' if auth.py is in the same folder as main.py
-# ============================================================
+load_dotenv()
+
 try:
     from backend.auth import (
         oauth, AUTH_SESSIONS, ensure_schema, get_db_connection,
-        utc_now_iso, get_current_customer, create_session, 
+        utc_now_iso, get_current_customer, create_session,
         serialize_customer, router as auth_router, TENANT_ID, CLIENT_ID
     )
 except ImportError:
     from auth import (
         oauth, AUTH_SESSIONS, ensure_schema, get_db_connection,
-        utc_now_iso, get_current_customer, create_session, 
+        utc_now_iso, get_current_customer, create_session,
         serialize_customer, router as auth_router, TENANT_ID, CLIENT_ID
     )
-
-# ============================================================
-# ENV & PATHS
-# ============================================================
-load_dotenv()
 
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(BACKEND_DIR)
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
-if not os.path.exists(FRONTEND_DIR):
-    FRONTEND_DIR = BACKEND_DIR
-
 DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(BACKEND_DIR, "customer_auth.db"))
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me-please-32chars-min")
 
-# ============================================================
-# FASTAPI APP
-# ============================================================
-app = FastAPI(title="Voice IT Helpdesk API")
+# Title updated to remove "Auto Detect"
+app = FastAPI(title="Voice IT Helpdesk")
 
-# SessionMiddleware is REQUIRED for authlib OAuth state
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
-
 allowed_origins = [
-    origin.strip()
-    for origin in os.getenv(
+    o.strip()
+    for o in os.getenv(
         "ALLOWED_ORIGINS",
         "http://127.0.0.1:5500,http://localhost:5500,http://127.0.0.1:8000,http://localhost:8000,http://localhost:3000"
     ).split(",")
-    if origin.strip()
+    if o.strip()
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True, # CRITICAL: Allows frontend to send/receive cookies
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Include the auth routes from auth.py (/api/auth/...)
 app.include_router(auth_router)
 
-# ============================================================
-# DATABASE INIT
-# ============================================================
+# --- Azure Services ---
+speech_router = None
+vision_router = None
+agent_loaded = False
+call_jarvis_vision = None
+PROJECT_ENDPOINT = os.getenv("PROJECT_ENDPOINT")
+AGENT_ID = os.getenv("AGENT_ID")
+
+try:
+    from backend.speech_service import router as speech_router
+    print("✓ Loaded backend.speech_service")
+except ImportError:
+    try:
+        from speech_service import router as speech_router
+        print("✓ Loaded speech_service")
+    except Exception as e:
+        print(f"✗ speech_service not loaded: {e}")
+        speech_router = None
+
+try:
+    from backend.agent_service import call_jarvis_vision as _call_jarvis
+    from backend.agent_service import PROJECT_ENDPOINT as _ep, AGENT_ID as _aid
+    call_jarvis_vision = _call_jarvis
+    PROJECT_ENDPOINT = _ep
+    AGENT_ID = _aid
+    agent_loaded = True
+    print(f"✓ Loaded agent_service -> {PROJECT_ENDPOINT} Agent: {AGENT_ID}")
+except ImportError:
+    try:
+        from agent_service import call_jarvis_vision as _call_jarvis
+        from agent_service import PROJECT_ENDPOINT as _ep, AGENT_ID as _aid
+        call_jarvis_vision = _call_jarvis
+        PROJECT_ENDPOINT = _ep
+        AGENT_ID = _aid
+        agent_loaded = True
+        print("✓ Loaded agent_service locally")
+    except Exception as e:
+        print(f"✗ agent_service not loaded: {e}")
+        agent_loaded = False
+
+try:
+    from backend.vision_service import router as vision_router
+    print("✓ Loaded vision_service (EasyOCR + JarvisVision)")
+except ImportError:
+    try:
+        from vision_service import router as vision_router
+        print("✓ Loaded vision_service locally")
+    except Exception as e:
+        print(f"✗ vision_service not loaded: {e}")
+        vision_router = None
+
+if speech_router:
+    app.include_router(speech_router)
+if vision_router:
+    app.include_router(vision_router)
+
+# Fallback if agent not loaded
+if not agent_loaded:
+    def call_jarvis_vision(user_text: str, history: List[Dict] = None, customer: Optional[Dict] = None, thread_id: Optional[str] = None):
+        return {
+            "answer": "Agent not configured. Set PROJECT_ENDPOINT, PROJECT_API_KEY, AGENT_ID in backend/.env",
+            "thread_id": thread_id
+        }
+
 def init_db() -> None:
     ensure_schema()
     with get_db_connection() as conn:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS tickets (
                 id TEXT PRIMARY KEY,
                 customer_id TEXT NOT NULL,
@@ -90,20 +134,13 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
             )
-            """
-        )
+        """)
         conn.commit()
 
 init_db()
 
-# ============================================================
-# RUNTIME STORAGE
-# ============================================================
 CONVERSATION_SESSIONS: Dict[str, Dict[str, Any]] = {}
 
-# ============================================================
-# PYDANTIC SCHEMAS
-# ============================================================
 class MessageIn(BaseModel):
     session_id: str
     text: str
@@ -112,9 +149,13 @@ class MessageOut(BaseModel):
     role: str
     text: str
     timestamp: str
+    thread_id: Optional[str] = None
 
 class TicketIn(BaseModel):
     issue: str
+    description: str = ""
+    category: str = "general"
+    priority: str = "medium"
 
 class Ticket(BaseModel):
     id: str
@@ -163,9 +204,6 @@ class CustomerLoginIn(BaseModel):
     email: EmailStr
     password: str
 
-# ============================================================
-# LOCAL AUTH HELPERS (Email/Password)
-# ============================================================
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
@@ -190,36 +228,31 @@ def verify_password(password: str, stored_hash: str) -> bool:
 def register_customer(payload: CustomerRegisterIn):
     email = normalize_email(str(payload.email))
     with get_db_connection() as conn:
-        existing = conn.execute("SELECT 1 FROM customers WHERE email =?", (email,)).fetchone()
+        existing = conn.execute("SELECT 1 FROM customers WHERE email = ?", (email,)).fetchone()
         if existing is not None:
             raise HTTPException(status_code=409, detail="An account with this email already exists.")
         customer_id = uuid.uuid4().hex
         now = utc_now_iso()
         password_hash = hash_password(payload.password)
         conn.execute(
-            """
-            INSERT INTO customers (id, full_name, email, password_hash, role, auth_provider, created_at, updated_at)
-            VALUES (?,?,?,?, 'customer','local',?,?)
-            """,
+            """INSERT INTO customers (id, full_name, email, password_hash, role, auth_provider, created_at, updated_at)
+               VALUES (?,?,?,?, 'customer','local',?,?)""",
             (customer_id, payload.full_name.strip(), email, password_hash, now, now),
         )
         conn.commit()
-    return serialize_customer(conn.execute("SELECT * FROM customers WHERE id =?", (customer_id,)).fetchone())
+    with get_db_connection() as conn:
+        return serialize_customer(conn.execute("SELECT * FROM customers WHERE id = ?", (customer_id,)).fetchone())
 
 @app.post("/api/auth/login")
 def login_customer(payload: CustomerLoginIn, response: Response):
     email = normalize_email(str(payload.email))
     with get_db_connection() as conn:
-        row = conn.execute("SELECT * FROM customers WHERE email =?", (email,)).fetchone()
+        row = conn.execute("SELECT * FROM customers WHERE email = ?", (email,)).fetchone()
     if row is None or not verify_password(payload.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
-    
     create_session(response, row["id"], provider=row["auth_provider"])
     return serialize_customer(row)
 
-# ============================================================
-# CONVERSATION & TICKETS
-# ============================================================
 @app.post("/api/session/start")
 def start_session(request: Request):
     customer = get_current_customer(request)
@@ -228,6 +261,7 @@ def start_session(request: Request):
         "created_at": utc_now_iso(),
         "user_id": customer["id"],
         "history": [],
+        "thread_id": None,
     }
     return {"session_id": session_id}
 
@@ -237,20 +271,29 @@ def send_message(payload: MessageIn, request: Request):
     conversation = CONVERSATION_SESSIONS.get(payload.session_id)
     if conversation is None or conversation["user_id"] != customer["id"]:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    result = call_jarvis_vision(
+        user_text=payload.text,
+        history=conversation["history"],
+        customer=customer,
+        thread_id=conversation.get("thread_id")
+    )
     
-    reply_text = "I'll check your device status now. Your wifi is connected but DNS is failing. I've opened a ticket for this."
-    
+    if isinstance(result, dict):
+        reply_text = result.get("answer", "")
+        thread_id = result.get("thread_id")
+    else:
+        reply_text = str(result)
+        thread_id = conversation.get("thread_id")
+
     conversation["history"].append({"role": "user", "text": payload.text})
     conversation["history"].append({"role": "agent", "text": reply_text})
-    return MessageOut(role="agent", text=reply_text, timestamp=utc_now_iso())
+    conversation["thread_id"] = thread_id
+
+    return MessageOut(role="agent", text=reply_text, timestamp=utc_now_iso(), thread_id=thread_id)
 
 def serialize_ticket(row: sqlite3.Row) -> Dict[str, str]:
-    return {
-        "id": row["id"],
-        "issue": row["issue"],
-        "status": row["status"],
-        "opened": row["created_at"],
-    }
+    return {"id": row["id"], "issue": row["issue"], "status": row["status"], "opened": row["created_at"]}
 
 @app.get("/api/tickets", response_model=List[Ticket])
 def get_tickets(request: Request):
@@ -282,10 +325,7 @@ def create_ticket(payload: TicketIn, request: Request):
 def delete_ticket(ticket_id: str, request: Request):
     customer = get_current_customer(request)
     with get_db_connection() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM tickets WHERE id = ? AND customer_id = ?",
-            (ticket_id, customer["id"]),
-        ).fetchone()
+        row = conn.execute("SELECT 1 FROM tickets WHERE id = ? AND customer_id = ?", (ticket_id, customer["id"])).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Ticket not found")
         conn.execute("DELETE FROM tickets WHERE id = ? AND customer_id = ?", (ticket_id, customer["id"]))
@@ -294,57 +334,40 @@ def delete_ticket(ticket_id: str, request: Request):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "time": utc_now_iso(), "entra_configured": bool(TENANT_ID and CLIENT_ID)}
+    return {
+        "status": "ok",
+        "time": utc_now_iso(),
+        "entra_configured": bool(TENANT_ID and CLIENT_ID),
+        "speech_loaded": speech_router is not None,
+        "vision_loaded": vision_router is not None,
+        "agent_loaded": agent_loaded,
+        "agent_id": AGENT_ID,
+        "project_endpoint": PROJECT_ENDPOINT,
+    }
 
-# ============================================================
-# FRONTEND SERVING
-# ============================================================
+def _read_html(name: str):
+    for base in [FRONTEND_DIR, BACKEND_DIR]:
+        p = os.path.join(base, name)
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                return f.read()
+    return None
+
 @app.get("/", response_class=HTMLResponse)
 def serve_index():
-    # Serve index.html as the initial landing page
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    
-    alt_path = os.path.join(BACKEND_DIR, "index.html")
-    if os.path.exists(alt_path):
-        with open(alt_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-            
-    return HTMLResponse(content="<h1>Voice IT Helpdesk</h1><p>index.html not found.</p>", status_code=200)
+    html = _read_html("index.html")
+    return HTMLResponse(content=html or "<h1>index.html not found</h1>", status_code=200 if html else 404)
 
 @app.get("/main", response_class=HTMLResponse)
 @app.get("/main.html", response_class=HTMLResponse)
 @app.get("/dashboard", response_class=HTMLResponse)
 def serve_main():
-    # Serve main.html as the dashboard (after login)
-    for name in ["main.html"]:
-        main_path = os.path.join(FRONTEND_DIR, name)
-        if os.path.exists(main_path):
-            with open(main_path, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-        alt_path = os.path.join(BACKEND_DIR, name)
-        if os.path.exists(alt_path):
-            with open(alt_path, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-    return HTMLResponse(content="<h1>main.html not found.</h1>", status_code=404)
+    html = _read_html("main.html")
+    return HTMLResponse(content=html or "<h1>main.html not found</h1>", status_code=200 if html else 404)
 
 @app.get("/login", response_class=HTMLResponse)
-@app.get("/Login.html", response_class=HTMLResponse)
 @app.get("/login.html", response_class=HTMLResponse)
+@app.get("/Login.html", response_class=HTMLResponse)
 def serve_login():
-    for name in ["Login.html", "login.html"]:
-        login_path = os.path.join(FRONTEND_DIR, name)
-        if os.path.exists(login_path):
-            with open(login_path, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-        alt_path = os.path.join(BACKEND_DIR, name)
-        if os.path.exists(alt_path):
-            with open(alt_path, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-    return HTMLResponse(content="<h1>Login file not found.</h1>", status_code=404)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    html = _read_html("Login.html") or _read_html("login.html")
+    return HTMLResponse(content=html or "<h1>Login.html not found</h1>", status_code=200 if html else 404)
