@@ -411,6 +411,10 @@
             padding: 118px 0;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
         .section .wrap {
             max-width: 1160px;
         }
@@ -843,6 +847,18 @@
             }
         }
 
+        @keyframes modal-in {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
         @media(max-width:760px) {
             .brand-tools {
                 gap: 8px;
@@ -1263,8 +1279,20 @@ body {
 
 /* Modals */
 .modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
     background: rgba(13,27,19,.48);
     backdrop-filter: blur(5px);
+    z-index: 1000;
+}
+
+.modal.active {
+    display: flex;
+    animation: modal-in .18s ease-out;
 }
 
 .modal-content {
@@ -1273,7 +1301,7 @@ body {
     border: 1px solid var(--line);
     border-radius: 20px;
     max-width: 500px;
-    width: 90%;
+    width: 100%;
     box-shadow: 0 25px 60px rgba(24,49,38,.22);
 }
 
@@ -1550,6 +1578,9 @@ body {
                     <button type="submit" class="btn btn-primary">Create ticket</button>
                 </div>
             </form>
+        </div>
+    </div>
+
     <!-- Ticket Detail Modal -->
     <div class="modal" id="ticketDetailModal">
         <div class="modal-content">

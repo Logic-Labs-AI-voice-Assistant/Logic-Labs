@@ -1,0 +1,62 @@
+1. Technical Demonstration Prompts - By Category
+A. Account & Access Management (Test Policy + Exception)
+Standard Prompts:
+
+"How do I reset my password? I forgot it."
+"What are the password requirements? How long and what characters?"
+"Where is the self-service password reset portal?"
+"MFA is mandatory? What app do we use?"
+"I lost my phone with Microsoft Authenticator, how to reset MFA?"
+"I am a new hire starting next Monday, when will I get my laptop? My manager hasn't submitted the form yet."
+Edge / Exception Prompts (Must catch contractor rule):
+7. "I am a contractor and I need to reset my password, can I use portal.company.com/password?"
+8. "Can you reset my MFA remotely over Teams call? I lost my device but can't come to office."
+9. "What happens if my manager submits the New Hire IT Request only 2 days before my start date?"
+
+B. Hardware & Equipment
+"What laptop do I get as a standard employee?"
+"I'm a developer, can I get a MacBook Pro 16 inch? What approval do I need?"
+"My laptop screen is broken, can I open it and fix it myself?"
+"How long will it take to get a loaner laptop if my laptop has critical failure?"
+"When do I need to return the loaner laptop?"
+"I need a second monitor and a standing desk, what is the policy?"
+C. Software & Applications
+"Can I install software from the internet on my work laptop?"
+"I need Figma but it's not in Company Portal, what should I do?"
+"Is it allowed to install Chrome extensions or gaming software?"
+"How much OneDrive storage do I have? What about SharePoint site creation?"
+"What happens if IT finds unauthorized software on my device?"
+D. Network & Connectivity
+"Which Wi-Fi should I connect to in the office? Can guests use Corp-Secure?"
+"Do I need VPN for Microsoft 365 and ServiceNow when working from home?"
+"What VPN do we use for remote work? Do I keep it on all day?"
+"Can I connect my personal iPhone to Corp-Secure network?"
+"I want to sync company email to my personal phone, is it allowed?"
+E. Security & Compliance
+"I got a suspicious email with a link, what should I do?"
+"I clicked a phishing link and entered my password by mistake, what's the next step?"
+"Where can I store customer PII and financial records? Can I store it on my desktop or USB drive?"
+"What is the lock screen policy? How do I lock my screen on Windows and Mac?"
+"What are the data classification levels?"
+F. Out-of-Scope & Escalation (Critical for Hallucination Test)
+"Can you help me fix my personal phone and home printer?"
+"My home Wi-Fi is slow, can IT troubleshoot my ISP?"
+"I have a question about my payroll and benefits, who do I contact?"
+"The light in my office is broken and chair is broken, can IT help?"
+"My IT ticket is not resolved for 3 days, how do I escalate it?"
+"Is there a company-wide outage? Where do I check?"
+G. Complex Multi-Policy Prompts (For Advanced Agent Demo)
+"I'm working remotely, my laptop broke, and I need to access internal drives. What are the steps for loaner + VPN?"
+"I'm a contractor, my laptop broke, I need Adobe Photoshop not in Company Portal, and I lost my MFA device. Walk me through it."
+"Compare BYOD-Secure vs Corp-Secure vs Guest networks - what can each access?"
+"I'm leaving my desk for 2 minutes to get coffee, do I really need to lock my screen? It auto-locks after 10 mins anyway."
+
+
+2. Images To Use For Agent UI Demo
+For your agent, generate these 5 visuals (I generated 1st for you, you can generate rest with same style):
+
+Password Reset: Isometric illustration of SSPR portal at portal.company.com/password [DONE ABOVE]
+MFA Lost: Employee at IT Help Desk with ID badge, showing in-person reset required
+Hardware Issuance: Dell Latitude 5440 vs MacBook Pro 16" comparison on IT desk
+VPN Remote Work: Person at home with GlobalProtect VPN connected to access internal drives
+Phishing Report: Forwarding suspicious email to phishing@company.com + calling ext. 5555
