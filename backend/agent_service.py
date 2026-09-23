@@ -3,14 +3,15 @@ import re
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
 
 PROJECT_ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT") or os.getenv("PROJECT_ENDPOINT")
+MODEL_NAME = os.getenv("FOUNDRY_MODEL_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT")
 AGENT_ID = os.getenv("JARVIS_AGENT_NAME") or os.getenv("AZURE_AGENT_ID") or os.getenv("AGENT_ID", "JarvisVision")
-AGENT_VERSION = os.getenv("JARVIS_AGENT_VERSION", "9")
+AGENT_VERSION = os.getenv("JARVIS_AGENT_VERSION", "11")
 
 NO_CODE_REPLY = "I can help explain the issue and guide you through the steps, but I cannot provide source code or scripts."
 CODE_PATTERNS = (
@@ -39,6 +40,30 @@ def _contains_code(text: str) -> bool:
 def _guard_response(text: str) -> str:
     return NO_CODE_REPLY if _contains_code(text) else text
 
+def _is_missing_model_deployment(error: Exception) -> bool:
+    message = str(error).lower()
+    return "knowledge_base_retrieve" in message and "deployment" in message and "404" in message
+
+def _create_response(client, input_messages: List[Dict]):
+    try:
+        return client.responses.create(
+            input=input_messages,
+            extra_body={
+                "agent_reference": {
+                    "name": AGENT_ID,
+                    "version": AGENT_VERSION,
+                    "type": "agent_reference",
+                }
+            },
+        )
+    except Exception as error:
+        if not _is_missing_model_deployment(error) or not MODEL_NAME:
+            raise
+
+        # The agent's retrieval tool can fail independently when its model
+        # deployment was removed. Keep chat available through the project model.
+        return client.responses.create(model=MODEL_NAME, input=input_messages)
+
 def call_jarvis_vision(user_text: str, history: List[Dict] = None, customer: Optional[Dict] = None, thread_id: Optional[str] = None) -> Dict[str, str]:
     """
     Calls the JarvisVision Foundry Agent through the Responses API.
@@ -62,25 +87,19 @@ def call_jarvis_vision(user_text: str, history: List[Dict] = None, customer: Opt
             context_prefix = f"[Customer: {cust_id} Email: {cust_email}] "
 
         input_messages.append({"role": "user", "content": context_prefix + user_text})
-        response = client.get_openai_client().responses.create(
-            input=input_messages,
-            extra_body={
-                "agent_reference": {
-                    "name": AGENT_ID,
-                    "version": AGENT_VERSION,
-                    "type": "agent_reference",
-                }
-            },
-            instructions=(
-                "You are JarvisVision, an IT helpdesk assistant. "
-                "Never output source code, scripts, commands, code blocks, or configuration snippets. "
-                "If asked for code, politely refuse and provide a plain-language explanation or safe steps instead."
-            ),
-        )
+        response = _create_response(client.get_openai_client(), input_messages)
         answer = _guard_response(response.output_text or "I couldn't find an answer in the policy library.")
         return {"answer": answer, "thread_id": getattr(response, "id", None)}
     except Exception as e:
+        if _is_missing_model_deployment(e):
+            error_message = (
+                "The Foundry agent's knowledge-base model deployment is missing. "
+                "Set FOUNDRY_MODEL_NAME to an existing deployment and repair the "
+                "knowledge_base_retrieve tool configuration in Azure AI Foundry."
+            )
+        else:
+            error_message = str(e)
         return {
-            "answer": f"Agent service unavailable: {str(e)}",
+            "answer": f"Agent service unavailable: {error_message}",
             "thread_id": thread_id
         }

@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 try:
     from backend.auth import (
