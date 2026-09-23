@@ -52,11 +52,3 @@ G. Complex Multi-Policy Prompts (For Advanced Agent Demo)
 "I'm leaving my desk for 2 minutes to get coffee, do I really need to lock my screen? It auto-locks after 10 mins anyway."
 
 
-2. Images To Use For Agent UI Demo
-For your agent, generate these 5 visuals (I generated 1st for you, you can generate rest with same style):
-
-Password Reset: Isometric illustration of SSPR portal at portal.company.com/password [DONE ABOVE]
-MFA Lost: Employee at IT Help Desk with ID badge, showing in-person reset required
-Hardware Issuance: Dell Latitude 5440 vs MacBook Pro 16" comparison on IT desk
-VPN Remote Work: Person at home with GlobalProtect VPN connected to access internal drives
-Phishing Report: Forwarding suspicious email to phishing@company.com + calling ext. 5555

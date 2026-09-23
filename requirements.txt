@@ -2,8 +2,7 @@ annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
 Authlib==1.8.0
-azure-ai-agents==1.1.0
-azure-ai-projects==2.7.0
+azure-ai-projects>=2.1.0
 azure-cognitiveservices-speech==1.51.2
 azure-core==1.41.0
 azure-identity==1.25.3

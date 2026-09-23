@@ -794,9 +794,7 @@
         }
 
         .theme-choices {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
+            display: block;
         }
 
         .theme-choice {
@@ -808,6 +806,7 @@
             font-size: 12px;
             font-weight: 750;
             cursor: pointer;
+            width: 100%;
         }
 
         .theme-choice.active {
@@ -988,25 +987,15 @@
                 </p>
 
                 <div class="theme-choices">
-
                     <button
+                        id="settings-theme-toggle"
                         class="theme-choice"
                         type="button"
-                        data-theme-choice="light"
-                        onclick="setTheme('light')"
+                        onclick="toggleTheme()"
+                        aria-pressed="false"
                     >
-                        Light
+                        Dark mode: Off
                     </button>
-
-                    <button
-                        class="theme-choice"
-                        type="button"
-                        data-theme-choice="dark"
-                        onclick="setTheme('dark')"
-                    >
-                        Dark
-                    </button>
-
                 </div>
             </section>
 
@@ -1055,15 +1044,16 @@
                     button.title = label;
                 }
 
-                document
-                    .querySelectorAll("[data-theme-choice]")
-                    .forEach((choice) => {
-                        const active =
-                            choice.dataset.themeChoice === theme;
+                const settingsToggle =
+                    document.getElementById("settings-theme-toggle");
 
-                        choice.classList.toggle("active", active);
-                        choice.setAttribute("aria-pressed", active);
-                    });
+                if (settingsToggle) {
+                    const dark = theme === "dark";
+
+                    settingsToggle.textContent =
+                        `Dark mode: ${dark ? "On" : "Off"}`;
+                    settingsToggle.setAttribute("aria-pressed", dark);
+                }
             };
 
             window.setTheme = (theme) => {

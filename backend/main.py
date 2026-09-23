@@ -118,7 +118,7 @@ if vision_router:
 if not agent_loaded:
     def call_jarvis_vision(user_text: str, history: List[Dict] = None, customer: Optional[Dict] = None, thread_id: Optional[str] = None):
         return {
-            "answer": "Agent not configured. Set PROJECT_ENDPOINT, PROJECT_API_KEY, AGENT_ID in backend/.env",
+            "answer": "Agent not configured. Set FOUNDRY_PROJECT_ENDPOINT, JARVIS_AGENT_NAME, and JARVIS_AGENT_VERSION in backend/.env",
             "thread_id": thread_id
         }
 
@@ -354,6 +354,7 @@ def _read_html(name: str):
     return None
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
 def serve_index():
     html = _read_html("index.html")
     return HTMLResponse(content=html or "<h1>index.html not found</h1>", status_code=200 if html else 404)

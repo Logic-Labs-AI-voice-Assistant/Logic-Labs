@@ -173,9 +173,9 @@ CLIENT_SECRET=your-client-secret
 REDIRECT_URI=http://localhost:8000/api/auth/microsoft/callback
 
 # Company Azure AI Foundry project containing the grounded support agent.
-PROJECT_ENDPOINT=https://your-resource.services.ai.azure.com/api/projects/your-project
-PROJECT_API_KEY=your-project-api-key
-AGENT_ID=your-agent-id
+FOUNDRY_PROJECT_ENDPOINT=https://your-resource.services.ai.azure.com/api/projects/your-project
+JARVIS_AGENT_NAME=JarvisVision
+JARVIS_AGENT_VERSION=9
 
 # Required for Azure Speech features.
 AZURE_SPEECH_KEY=your-speech-key
@@ -190,7 +190,7 @@ SESSION_COOKIE_SAMESITE=lax
 ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
 ```
 
-For local development, `CLIENT_SECRET`, `PROJECT_API_KEY`, and `AZURE_SPEECH_KEY` are only needed for the features that use them. Never commit `backend/.env`, API keys, client secrets, company documents, diagnostic images, ticket exports, or a production database. The `.gitignore` file is already configured to exclude environment files and SQLite databases. Use synthetic data unless the local environment is company-approved.
+For local development, `CLIENT_SECRET` and `AZURE_SPEECH_KEY` are only needed for the features that use them. Never commit `backend/.env`, API keys, client secrets, company documents, diagnostic images, ticket exports, or a production database. The `.gitignore` file is already configured to exclude environment files and SQLite databases. Use synthetic data unless the local environment is company-approved.
 
 ### 5. Start the backend
 
@@ -219,13 +219,13 @@ Using the backend to serve the frontend is recommended because the pages use rel
 5. Attach a PNG, JPG, or PDF if the issue includes a screenshot or document.
 6. Create a ticket from the dashboard when the issue needs tracking.
 
-Without `PROJECT_ENDPOINT` and `AGENT_ID`, the application still starts and the UI can be explored with synthetic data, but chat replies will say that the agent is not configured. Without an Azure Speech key, speech token/transcription/synthesis calls will report a configuration error. Do not treat the fallback response as a production support solution.
+Without `FOUNDRY_PROJECT_ENDPOINT`, `JARVIS_AGENT_NAME`, and `JARVIS_AGENT_VERSION`, the application still starts and the UI can be explored with synthetic data, but chat replies will say that the agent is not configured. Without an Azure Speech key, speech token/transcription/synthesis calls will report a configuration error. Do not treat the fallback response as a production support solution.
 
 ## Azure Configuration
 
 Production Azure resources must belong to the company's approved tenant and subscription. Configure private endpoints, firewall rules, managed identities, encryption, diagnostic-log access, retention, and regional data residency according to company policy. Do not use a personal subscription or an unapproved public endpoint for company data.
 
-1. **Azure AI Foundry:** use a company-managed project and agent whose grounding sources contain approved custom-computer documentation, known errors, supported fixes, and escalation rules. Set `PROJECT_ENDPOINT` and `AGENT_ID`.
+1. **Azure AI Foundry:** use a company-managed project and `JarvisVision` agent whose grounding sources contain approved custom-computer documentation, known errors, supported fixes, and escalation rules. Set `FOUNDRY_PROJECT_ENDPOINT`, `JARVIS_AGENT_NAME`, and `JARVIS_AGENT_VERSION`.
 2. **Grounding source:** connect the agent to the company's approved knowledge repository or retrieval index. Keep source ownership, versioning, permissions, and citations available for audit. This repository is not implemented by the current starter code and must be supplied by the company deployment.
 3. **Azure Speech:** use a company-approved Speech resource and set `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. Treat audio, transcripts, and synthesized responses as company data.
 4. **Microsoft Entra ID:** register the application in the company tenant, restrict sign-in to approved users or groups, create a client secret or managed identity, and add `http://localhost:8000/api/auth/microsoft/callback` as a development redirect URI. Use the company production callback for deployment.
@@ -285,7 +285,7 @@ Use the URL served by Uvicorn, such as `http://127.0.0.1:8000/`, rather than ope
 
 ### The AI answer says the agent is not configured
 
-Check `backend/.env` for `PROJECT_ENDPOINT` and `AGENT_ID`, restart Uvicorn after changing the file, and check `/api/health`.
+Check `backend/.env` for `FOUNDRY_PROJECT_ENDPOINT`, `JARVIS_AGENT_NAME`, and `JARVIS_AGENT_VERSION`, restart Uvicorn after changing the file, and check `/api/health`.
 
 ### Microsoft login fails
 

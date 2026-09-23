@@ -4,5 +4,6 @@ __pycache__/
 .env
 data.txt
 *.log
+.pytest_cache/
 .venv/
 .venv_run/

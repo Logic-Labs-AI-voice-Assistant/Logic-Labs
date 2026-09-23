@@ -1793,11 +1793,26 @@ body {
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
+        function cleanSpeechText(text) {
+            return String(text || '')
+                .replace(/```[\s\S]*?```/g, '')
+                .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+                .replace(/https?:\/\/\S+/gi, '')
+                .replace(/^\s{0,3}#{1,6}\s*/gm, '')
+                .replace(/^\s*[-*+]\s+/gm, '')
+                .replace(/[*_~`>#|]/g, '')
+                .replace(/[@]/g, ' at ')
+                .replace(/[^\p{L}\p{N}\s.,!?;:'()\/-]/gu, '')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+        }
+
         function speakResponse(text) {
             if (isMuted) return;
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
+                const utterance = new SpeechSynthesisUtterance(cleanSpeechText(text));
                 const selectedVoiceName = document.getElementById('voiceSelect').value;
                 
                 const setVoiceAndSpeak = () => {

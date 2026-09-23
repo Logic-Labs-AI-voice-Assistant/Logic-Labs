@@ -1,124 +1,84 @@
 import os
+import re
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from azure.ai.agents import AgentsClient
-from azure.ai.agents.models import ListSortOrder
-from azure.identity import DefaultAzureCredential, ClientSecretCredential
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
 
-PROJECT_ENDPOINT = os.getenv("PROJECT_ENDPOINT")
-TENANT_ID = os.getenv("TENANT_ID")
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-AGENT_ID = os.getenv("AGENT_ID")
+PROJECT_ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT") or os.getenv("PROJECT_ENDPOINT")
+AGENT_ID = os.getenv("JARVIS_AGENT_NAME") or os.getenv("AZURE_AGENT_ID") or os.getenv("AGENT_ID", "JarvisVision")
+AGENT_VERSION = os.getenv("JARVIS_AGENT_VERSION", "9")
+
+NO_CODE_REPLY = "I can help explain the issue and guide you through the steps, but I cannot provide source code or scripts."
+CODE_PATTERNS = (
+    re.compile(r"```", re.IGNORECASE),
+    re.compile(r"^\s*(?:def|class|function|const|let|var|import|from)\s+", re.MULTILINE),
+    re.compile(r"^\s*(?:#!/|<\?php|#include\s+|using\s+namespace\s+)", re.MULTILINE),
+)
 
 _client = None
 
-def get_agent_client() -> AgentsClient:
+def get_agent_client() -> AIProjectClient:
     global _client
     if _client is None:
         if not PROJECT_ENDPOINT:
-            raise ValueError("Missing required environment variable: PROJECT_ENDPOINT")
-        
-        try:
-            credential = DefaultAzureCredential()
-        except Exception:
-            credential = ClientSecretCredential(
-                tenant_id=TENANT_ID,
-                client_id=CLIENT_ID,
-                client_secret=CLIENT_SECRET
-            )
-        
-        _client = AgentsClient(
+            raise ValueError("Missing required environment variable: FOUNDRY_PROJECT_ENDPOINT")
+
+        _client = AIProjectClient(
             endpoint=PROJECT_ENDPOINT,
-            credential=credential,
-            credential_scopes=["https://ai.azure.com/.default"]
+            credential=DefaultAzureCredential(),
         )
     return _client
 
+def _contains_code(text: str) -> bool:
+    return any(pattern.search(text) for pattern in CODE_PATTERNS)
+
+def _guard_response(text: str) -> str:
+    return NO_CODE_REPLY if _contains_code(text) else text
+
 def call_jarvis_vision(user_text: str, history: List[Dict] = None, customer: Optional[Dict] = None, thread_id: Optional[str] = None) -> Dict[str, str]:
     """
-    Calls JarvisVision Foundry Agent
+    Calls the JarvisVision Foundry Agent through the Responses API.
     Returns dict: {answer, thread_id}
     """
     try:
         client = get_agent_client()
-        if not AGENT_ID:
-            raise ValueError("AGENT_ID not set in .env - copy from Foundry")
+        input_messages = []
+        for item in (history or [])[-6:]:
+            text = item.get("text", "")
+            if text:
+                input_messages.append({
+                    "role": "user" if item.get("role") == "user" else "assistant",
+                    "content": text,
+                })
 
-        # Reuse thread if session already has one, else create new
-        if thread_id:
-            try:
-                thread = client.threads.get(thread_id=thread_id)
-            except Exception:
-                # If thread doesn't exist or is invalid, create a new one
-                thread = client.threads.create()
-                thread_id = thread.id
-        else:
-            thread = client.threads.create()
-            thread_id = thread.id
-
-        # Add history (last 6 turns to save tokens)
-        if history:
-            for h in (history or [])[-6:]:
-                role = "user" if h.get("role") == "user" else "assistant"
-                text = h.get("text", "")
-                if text:
-                    client.messages.create(
-                        thread_id=thread_id,
-                        role=role,
-                        content=text
-                    )
-
-        # Add current user message with customer context
         context_prefix = ""
         if customer:
             cust_id = customer["id"] if "id" in customer.keys() else str(customer)
             cust_email = customer["email"] if "email" in customer.keys() else ""
             context_prefix = f"[Customer: {cust_id} Email: {cust_email}] "
 
-        client.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=context_prefix + user_text
+        input_messages.append({"role": "user", "content": context_prefix + user_text})
+        response = client.get_openai_client().responses.create(
+            input=input_messages,
+            extra_body={
+                "agent_reference": {
+                    "name": AGENT_ID,
+                    "version": AGENT_VERSION,
+                    "type": "agent_reference",
+                }
+            },
+            instructions=(
+                "You are JarvisVision, an IT helpdesk assistant. "
+                "Never output source code, scripts, commands, code blocks, or configuration snippets. "
+                "If asked for code, politely refuse and provide a plain-language explanation or safe steps instead."
+            ),
         )
-
-        # Process the run
-        run = client.runs.create_and_process(
-            thread_id=thread_id,
-            agent_id=AGENT_ID,
-        )
-
-        if run.status == "failed":
-            error_msg = run.last_error.message if run.last_error else "Unknown agent error"
-            return {"answer": f"Agent failed: {error_msg}", "thread_id": thread_id}
-
-        # Get the latest assistant message
-        messages = client.messages.list(thread_id=thread_id, order=ListSortOrder.DESCENDING)
-        for msg in messages:
-            msg_role = str(getattr(msg, "role", "")).lower()
-            if "assistant" in msg_role or "agent" in msg_role:
-                if hasattr(msg, "text_messages") and msg.text_messages:
-                    item = msg.text_messages[-1]
-                    if isinstance(item, dict):
-                        text_val = item.get("text", {}).get("value", "")
-                    elif hasattr(item, "text"):
-                        txt = item.text
-                        text_val = txt.get("value", "") if isinstance(txt, dict) else getattr(txt, "value", str(txt))
-                    else:
-                        text_val = str(item)
-                    if text_val:
-                        return {"answer": text_val, "thread_id": thread_id}
-                elif hasattr(msg, "content") and msg.content:
-                    for c in msg.content:
-                        if isinstance(c, dict):
-                            val = c.get("text", {}).get("value")
-                            if val:
-                                return {"answer": val, "thread_id": thread_id}
-
-        return {"answer": "I couldn't find an answer in the policy library.", "thread_id": thread_id}
+        answer = _guard_response(response.output_text or "I couldn't find an answer in the policy library.")
+        return {"answer": answer, "thread_id": getattr(response, "id", None)}
     except Exception as e:
         return {
             "answer": f"Agent service unavailable: {str(e)}",
