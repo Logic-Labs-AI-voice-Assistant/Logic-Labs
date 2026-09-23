@@ -110,11 +110,19 @@ Logic-Labs/
 │   ├── index.html          Landing page
 │   ├── Login.html          Login and registration screen
 │   └── main.html           Chat, voice, upload, and ticket interface
+├── tools/
+│   └── PromptLab.txt       Ready-made prompt examples for AI testing and demos
 ├── tests/
 │   └── test_auth.py        Authentication, tickets, API, and upload tests
 ├── requirements.txt        Python dependencies
 └── README.md               This guide
 ```
+
+### PromptLab
+
+The `tools/` folder includes a `PromptLab.txt` file with ready-made example prompts for the AI assistant. These prompts cover common IT helpdesk scenarios such as account access, hardware requests, software approvals, network questions, and escalation cases. They are useful as sample user inputs during testing, demos, and validation of whether the AI answers with the correct company policy and escalation behavior.
+
+In practice, you can copy a prompt from `PromptLab.txt` into the chat interface or use it as a reference when building new test cases. This helps evaluate the model with realistic requests before exposing it to real employee support scenarios.
 
 ## Reproduce the Project from GitHub
 
